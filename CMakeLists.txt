@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.0)
+project(zrc)
+
+if(WIN32)
+    add_definitions(-DNOMINMAX)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_compile_options(/FAs)
+endif()
+
+set(CMAKE_CXX_STANDARD 14)
+
+add_subdirectory(chipmunk)
+add_subdirectory(klib)
+add_subdirectory(libzrc)
+add_subdirectory(tinycthread)
+add_subdirectory(zrc)

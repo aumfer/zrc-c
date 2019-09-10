@@ -1,0 +1,95 @@
+#include <zrc.h>
+#include <stdio.h>
+
+void physics_startup(zrc_t *zrc) {
+	printf("physics %zu\n", sizeof(zrc->physics));
+
+	zrc->space = cpSpaceNew();
+	//const float LOAD_FACTOR = 0.1f;
+	//cpSpaceUseSpatialHash(space, MAP_SCALE, PHYSICS_MAX_ENTITIES/LOAD_FACTOR);
+	cpSpaceSetUserData(zrc->space, zrc);
+
+	zrc->collision_handler = cpSpaceAddDefaultCollisionHandler(zrc->space);
+}
+void physics_shutdown(zrc_t *zrc) {
+
+}
+
+void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
+	//cpFloat mass = physics_entity.radius * physics_entity.radius;
+	cpFloat mass = 1;
+	//cpFloat moment = cpMomentForCircle(mass, 0, physics_entity.radius*2, cpvzero);
+	cpFloat moment = 1;
+	physics->body = cpBodyNew(mass, moment);
+	cpBodySetType(physics->body, physics->type);
+
+	cpVect offset = cpvzero;
+	physics->shape = cpCircleShapeNew(physics->body, physics->radius, offset);
+	cpShapeFilter filter;
+	filter.group = id;
+	filter.categories = physics->collide_flags;
+	filter.mask = physics->collide_mask;
+	cpShapeSetFilter(physics->shape, filter);
+
+	cpBodySetUserData(physics->body, (cpDataPointer)id);
+	cpShapeSetUserData(physics->shape, (cpDataPointer)id);
+	cpSpaceAddBody(zrc->space, physics->body);
+	cpSpaceAddShape(zrc->space, physics->shape);
+}
+void physics_delete(zrc_t *zrc, id_t id, physics_t *physics) {
+	cpSpaceRemoveShape(zrc->space, physics->shape);
+	cpSpaceRemoveBody(zrc->space, physics->body);
+	cpShapeDestroy(physics->shape);
+	cpBodyDestroy(physics->body);
+}
+void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
+	cpVect force = cpvzero;
+	cpFloat torque = 0;
+	motion_t *motion;
+	ZRC_RECEIVE(zrc, motion, id, motion, {
+		force.x += motion->force[0];
+		force.y += motion->force[1];
+		torque += motion->torque;
+	});
+	cpBodySetForce(physics->body, force);
+	cpBodySetTorque(physics->body, torque);
+}
+void physics_update(zrc_t *zrc) {
+	cpSpaceStep(zrc->space, TICK_RATE);
+}
+void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
+	cpVect position = cpBodyGetPosition(physics->body);
+	physics->position[0] = (float)position.x;
+	physics->position[1] = (float)position.y;
+
+	cpFloat angle = cpBodyGetAngle(physics->body);
+	physics->angle = (float)angle;
+
+	cpVect velocity = cpBodyGetVelocity(physics->body);
+	physics->velocity[0] = (float)velocity.x;
+	physics->velocity[1] = (float)velocity.y;
+
+	cpFloat angular_velocity = cpBodyGetAngularVelocity(physics->body);
+	physics->angular_velocity = (float)angular_velocity;
+}
+
+id_t physics_query_ray(zrc_t *zrc, float start[2], float end[2], float radius) {
+	cpSegmentQueryInfo info;
+	cpShape *shape = cpSpaceSegmentQueryFirst(zrc->space, cpv(start[0], start[1]), cpv(end[0], end[1]), radius, CP_SHAPE_FILTER_ALL, &info);
+	if (shape) {
+		id_t id = (id_t)cpShapeGetUserData(shape);
+		return id;
+	}
+	return ID_INVALID;
+}
+
+id_t physics_query_point(zrc_t *zrc, float point[2], float radius) {
+	cpPointQueryInfo info;
+	cpShape *shape = cpSpacePointQueryNearest(zrc->space, cpv(point[0], point[1]), radius, CP_SHAPE_FILTER_ALL, &info);
+	if (shape) {
+		id_t id = (id_t)cpShapeGetUserData(shape);
+		return id;
+		return id;
+	}
+	return ID_INVALID;
+}
