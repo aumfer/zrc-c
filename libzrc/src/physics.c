@@ -22,6 +22,7 @@ void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpFloat moment = 1;
 	physics->body = cpBodyNew(mass, moment);
 	cpBodySetType(physics->body, physics->type);
+	//physics_begin(zrc, id, physics);
 
 	cpVect offset = cpvzero;
 	physics->shape = cpCircleShapeNew(physics->body, physics->radius, offset);
@@ -43,16 +44,12 @@ void physics_delete(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpBodyDestroy(physics->body);
 }
 void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
-	cpVect force = cpvzero;
-	cpFloat torque = 0;
-	motion_t *motion;
-	ZRC_RECEIVE(zrc, motion, id, motion, {
-		force.x += motion->force[0];
-		force.y += motion->force[1];
-		torque += motion->torque;
-	});
-	cpBodySetForce(physics->body, force);
-	cpBodySetTorque(physics->body, torque);
+	cpBodySetPosition(physics->body, cpv(physics->position[0], physics->position[1]));
+	cpBodySetAngle(physics->body, physics->angle);
+	cpBodySetVelocity(physics->body, cpv(physics->velocity[0], physics->velocity[1]));
+	cpBodySetAngularVelocity(physics->body, physics->angular_velocity);
+	cpBodySetForce(physics->body, cpv(physics->force[0], physics->force[1]));
+	cpBodySetTorque(physics->body, physics->torque);
 }
 void physics_update(zrc_t *zrc) {
 	cpSpaceStep(zrc->space, TICK_RATE);
@@ -71,6 +68,13 @@ void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
 
 	cpFloat angular_velocity = cpBodyGetAngularVelocity(physics->body);
 	physics->angular_velocity = (float)angular_velocity;
+
+	cpVect force = cpBodyGetForce(physics->body);
+	physics->force[0] = (float)force.x;
+	physics->force[1] = (float)force.y;
+
+	cpFloat torque = cpBodyGetTorque(physics->body);
+	physics->torque = (float)torque;
 }
 
 id_t physics_query_ray(zrc_t *zrc, float start[2], float end[2], float radius) {

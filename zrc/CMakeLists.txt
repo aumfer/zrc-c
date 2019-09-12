@@ -1,4 +1,8 @@
 add_executable(zrc
+    include/draw_visual.h
+    src/draw_visual.c
+    include/font.h
+    src/font.c
     src/main.c
 )
 
