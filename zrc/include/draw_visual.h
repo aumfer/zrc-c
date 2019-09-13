@@ -5,6 +5,7 @@
 #include <zrc.h>
 #include <camera.h>
 #include <control.h>
+#include <blur.h>
 
 typedef enum instance_flags {
 	INSTANCE_NONE,
@@ -31,8 +32,11 @@ typedef struct draw_visual {
 
 	instance_t instances[INSTANCE_BUFFER_MAX];
 
-	sg_pass glow;
-	sg_pipeline blur;
+	sg_image output;
+	sg_pass pass;
+
+	blur_t blur;
+	sg_pipeline add_blur;
 } draw_visual_t;
 
 void draw_visual_create(draw_visual_t *);

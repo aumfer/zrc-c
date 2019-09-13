@@ -1,4 +1,6 @@
 add_executable(zrc
+    include/blur.h
+    src/blur.c
     include/control.h
     src/control.c
     include/draw_world.h

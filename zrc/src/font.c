@@ -230,8 +230,9 @@ void font_draw(font_t *font) {
 	hmm_mat4 projection = HMM_Orthographic(0.0f, (float)sapp_width(), 0.0f, (float)sapp_height(), 0.0f, 1.0f);
 
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_LOAD
-		//.colors[0].action = SG_ACTION_DONTCARE
+		.colors[0].action = SG_ACTION_LOAD,
+		.depth.action = SG_ACTION_DONTCARE,
+		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());
 
 	sg_apply_pipeline(font->program);

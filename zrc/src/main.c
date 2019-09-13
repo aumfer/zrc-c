@@ -77,11 +77,11 @@ void init(void) {
 		ZRC_SPAWN(zrc, flight, i, &flight);
 		life_t life = {
 			.max_health = 100,
-			.health = 50,
+			.health = 75,
 			.max_mana = 100,
-			.mana = 50,
+			.mana = 25,
 			.max_rage = 100,
-			.rage = 0
+			.rage = 50
 		};
 		ZRC_SPAWN(zrc, life, i, &life);
 	}
