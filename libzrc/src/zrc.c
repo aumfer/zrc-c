@@ -152,6 +152,8 @@ void life_delete(zrc_t *zrc, id_t id, life_t *life) {
 }
 void life_update(zrc_t *zrc, id_t id, life_t *life) {
 	damage_t *damage;
+	life->health -= 1 * TICK_RATE;
+	life->mana += 1 * TICK_RATE;
 	ZRC_RECEIVE(zrc, damage, id, damage, {
 		life->health = max(0, life->health - damage->health);
 	});

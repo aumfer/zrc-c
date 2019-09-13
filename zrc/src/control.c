@@ -1,10 +1,12 @@
 #include <control.h>
 
 void control_update(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *zrc) {
-	camera->zoom = 40 - ui_touch(ui, UI_TOUCH_SCROLL).point[1];
+	camera->zoom = 64 - ui_touch(ui, UI_TOUCH_SCROLL).point[1];
 
 	physics_t *physics = ZRC_GET(zrc, physics, control->select);
 	if (physics) {
+		camera->zoom += physics->radius;
+
 		cpVect look = cpv(0, 16);
 		cpVect target = cpvrotate(look, cpvforangle(physics->angle));
 		camera->target[0] = (float)(physics->position[0] + target.x);

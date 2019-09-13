@@ -31,7 +31,7 @@ float sdIntersect(float d1, float d2) {
 }
 
 float sdPie(vec2 p, float angle) {
-	angle = radians(angle) / 2.0;
+	//angle = radians(angle) / 2.0;
 	vec2 n = vec2(cos(angle), sin(angle));
 	return abs(p).x * n.x + p.y*n.y;
 }
@@ -54,7 +54,7 @@ float sdTriangle(vec2 p, float width, float height) {
 float sdSemiCircle(vec2 p, float radius, float angle, float width) {
 	width /= 2.0;
 	radius -= width;
-	return sdSubstract(sdPie(p, angle), 
+	return sdIntersect(sdPie(p, angle), 
 					 abs(sdCircle(p, radius)) - width);
 }
 

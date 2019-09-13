@@ -12,6 +12,7 @@ extern "C" {
 #include <sokol_time.h>
 #include <moving_average.h>
 #include <timer.h>
+#include <color.h>
 
 typedef uint16_t id_t;
 #define ID_INVALID ((uint16_t)-1)
@@ -21,6 +22,8 @@ typedef uint16_t id_t;
 #define MASK_FRAMES (MAX_FRAMES-1)
 
 #define TICK_RATE (1.0f/60.0f)
+
+#define randf() ((float)rand() / RAND_MAX)
 
 typedef enum zrc_component {
 	zrc_physics,
@@ -68,9 +71,6 @@ typedef struct physics_controller {
 	cpConstraint *gear;
 } physics_controller_t;
 
-#define rgba(r, g, b, a) (uint32_t)((((uint8_t)(r)) << 0) | (((uint8_t)(g)) << 8) | (((uint8_t)(b)) << 16) | (((uint8_t)(a)) << 24))
-#define rgb(r, g, b) rgba(r, g, b, 255)
-
 typedef struct visual {
 	uint32_t color;
 	uint32_t flags;
@@ -85,12 +85,9 @@ typedef struct flight {
 } flight_t;
 
 typedef struct life {
-	float health, strength, constitution;
-	float max_health, max_strength, max_constitution;
-	float mana, focus, willpower;
-	float max_mana, max_focus, max_willpower;
-	float rage, serenity, temper;
-	float max_rage, max_serentiy, max_temper;
+	float health, max_health, strength, constitution;
+	float mana, max_mana, focus, willpower;
+	float rage, max_rage, serenity, temper;
 } life_t;
 
 #define MAX_DAMAGES 32

@@ -6,6 +6,11 @@
 #include <camera.h>
 #include <control.h>
 
+typedef enum instance_flags {
+	INSTANCE_NONE,
+	INSTANCE_SELECTED
+} instance_flags_t;
+
 typedef struct instance {
 	float radius;
 	float angle;
@@ -13,6 +18,8 @@ typedef struct instance {
 	float speed[2];
 	float spin;
 	uint32_t color;
+	uint32_t flags;
+	float life[3];
 } instance_t;
 
 #define INSTANCE_BUFFER_MAX (MAX_ENTITIES/4)

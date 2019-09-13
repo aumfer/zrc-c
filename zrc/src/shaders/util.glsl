@@ -205,6 +205,18 @@ mat4 mat4_translate(float x, float y, float z){
     );
 }
 
+mat4 mat4_rotate(float angle, vec3 Axis) {
+	float SinTheta = sin(angle);
+	float CosTheta = cos(angle);
+	float CosValue = 1 - CosTheta;
+	return mat4(
+		vec4((Axis.x * Axis.x * CosValue) + CosTheta, (Axis.x * Axis.y * CosValue) + (Axis.z * SinTheta), (Axis.x * Axis.z * CosValue) - (Axis.y * SinTheta), 0),
+		vec4((Axis.y * Axis.x * CosValue) - (Axis.z * SinTheta), (Axis.y * Axis.y * CosValue) + CosTheta, (Axis.y * Axis.z * CosValue) + (Axis.x * SinTheta), 0),
+		vec4((Axis.z * Axis.x * CosValue) + (Axis.y * SinTheta), (Axis.z * Axis.y * CosValue) - (Axis.x * SinTheta), (Axis.z * Axis.z * CosValue) + CosTheta ,0),
+		vec4(0, 0, 0, 1)
+	);
+}
+
 //==========================================================================================
 // indexing
 //==========================================================================================

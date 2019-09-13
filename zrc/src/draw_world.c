@@ -52,14 +52,12 @@ out vec4 p_color;
 void main() {
 	vec3 color = vec3(0);
 
-	float d = 1e10;
-	d = min(d, grid_line((f_position) / 16) * 16);
-	//d = min(d, grid_point((v_position + map_scale / 2) / map_scale) * map_scale);
-	//d = min(d, hexagon(v_position, map_scale).z);
+
 
 	//color += rgb(3, 3, 3);
-	color += vec3(hash1(f_position)) * 0.01;
-	color += rgb(100, 149, 237) * fill2(d) * 0.05;
+	color += vec3(hash1(f_position)) * 0.001;
+	color += rgb(100, 149, 237) * fill2(grid_line((f_position) / 16) * 16) * 0.05;
+	color += rgb(100, 149, 237) * fill2(hexagon(f_position, 64).z / 4) * 0.01;
 	
 	color = pow(color, vec3(1.0 / 2.2));
 	p_color = vec4(color, 1.0);
@@ -111,7 +109,7 @@ void draw_world_destroy(draw_world_t *draw_world) {
 
 void draw_world_tick(draw_world_t *draw_world, const camera_t *camera) {
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_DONTCARE
+		0
 	}, sapp_width(), sapp_height());
 
 	sg_apply_pipeline(draw_world->program);
