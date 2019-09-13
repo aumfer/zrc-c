@@ -5,6 +5,8 @@ if(WIN32)
     add_definitions(-DNOMINMAX)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_compile_options(/FAs)
+    #add_compile_options(/GL)
+    #add_link_options(/LTCG)
 endif()
 
 set(CMAKE_CXX_STANDARD 14)

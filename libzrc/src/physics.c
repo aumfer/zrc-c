@@ -16,13 +16,14 @@ void physics_shutdown(zrc_t *zrc) {
 }
 
 void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
-	//cpFloat mass = physics_entity.radius * physics_entity.radius;
+	//cpFloat mass = physics->radius * 2 * CP_PI;
 	cpFloat mass = 1;
-	//cpFloat moment = cpMomentForCircle(mass, 0, physics_entity.radius*2, cpvzero);
+	//cpFloat moment = cpMomentForCircle(mass, 0, physics->radius*2, cpvzero);
 	cpFloat moment = 1;
 	physics->body = cpBodyNew(mass, moment);
 	cpBodySetType(physics->body, physics->type);
-	//physics_begin(zrc, id, physics);
+	// have to call this for static objs
+	physics_begin(zrc, id, physics);
 
 	cpVect offset = cpvzero;
 	physics->shape = cpCircleShapeNew(physics->body, physics->radius, offset);
@@ -40,8 +41,8 @@ void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
 void physics_delete(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpSpaceRemoveShape(zrc->space, physics->shape);
 	cpSpaceRemoveBody(zrc->space, physics->body);
-	cpShapeDestroy(physics->shape);
-	cpBodyDestroy(physics->body);
+	cpShapeFree(physics->shape);
+	cpBodyFree(physics->body);
 }
 void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpBodySetPosition(physics->body, cpv(physics->position[0], physics->position[1]));

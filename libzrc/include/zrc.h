@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _ZRC_H_
+#define _ZRC_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +11,7 @@ extern "C" {
 #include <assert.h>
 #include <sokol_time.h>
 #include <moving_average.h>
+#include <timer.h>
 
 typedef uint16_t id_t;
 #define ID_INVALID ((uint16_t)-1)
@@ -25,6 +27,7 @@ typedef enum zrc_component {
 	zrc_visual,
 	zrc_flight,
 	zrc_life,
+	zrc_physics_controller,
 	zrc_component_count
 } zrc_component_t;
 
@@ -61,6 +64,8 @@ typedef struct physics_controller {
 	float angular_velocity;
 
 	cpBody *body;
+	cpConstraint *pivot;
+	cpConstraint *gear;
 } physics_controller_t;
 
 #define rgba(r, g, b, a) (uint32_t)((((uint8_t)(r)) << 0) | (((uint8_t)(g)) << 8) | (((uint8_t)(b)) << 16) | (((uint8_t)(a)) << 24))
@@ -72,6 +77,9 @@ typedef struct visual {
 } visual_t;
 
 typedef struct flight {
+	float max_thrust;
+	float max_turn;
+
 	float thrust[2];
 	float turn;
 } flight_t;
@@ -106,7 +114,7 @@ typedef struct zrc {
 
 	unsigned frames[zrc_count];
 	uint64_t times[zrc_count];
-	uint64_t time;
+	timer_t timer;
 	double accumulator;
 	moving_average_t fps;
 	cpSpace *space;
@@ -255,6 +263,14 @@ void life_create(zrc_t *, id_t, life_t *);
 void life_delete(zrc_t *, id_t, life_t *);
 void life_update(zrc_t *, id_t, life_t *);
 
+void physics_controller_startup(zrc_t *);
+void physics_controller_shutdown(zrc_t *);
+void physics_controller_create(zrc_t *, id_t, physics_controller_t *);
+void physics_controller_delete(zrc_t *, id_t, physics_controller_t *);
+void physics_controller_update(zrc_t *, id_t, physics_controller_t *);
+
 #ifdef __cplusplus
 }
+#endif
+
 #endif

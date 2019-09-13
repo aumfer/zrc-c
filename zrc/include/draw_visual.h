@@ -3,6 +3,8 @@
 
 #include <sokol_gfx.h>
 #include <zrc.h>
+#include <camera.h>
+#include <control.h>
 
 typedef struct instance {
 	float radius;
@@ -21,11 +23,14 @@ typedef struct draw_visual {
 	sg_pipeline program;
 
 	instance_t instances[INSTANCE_BUFFER_MAX];
+
+	sg_pass glow;
+	sg_pipeline blur;
 } draw_visual_t;
 
 void draw_visual_create(draw_visual_t *);
 void draw_visual_destroy(draw_visual_t *);
 
-void draw_visual_tick(draw_visual_t *, zrc_t *);
+void draw_visual_tick(draw_visual_t *, zrc_t *, const camera_t *, const control_t *);
 
 #endif

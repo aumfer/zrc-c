@@ -1,7 +1,11 @@
 add_library(libzrc
+    include/camera.h
+    src/camera.c
     include/moving_average.h
     src/moving_average.c
     src/physics.c
+    include/timer.h
+    src/timer.c
     include/zrc.h
     src/zrc.c
 )

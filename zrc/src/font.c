@@ -56,8 +56,8 @@ void font_create(font_t *font, font_style_t style) {
 
 	font->texture = sg_make_image(&(sg_image_desc) {
 		.type = SG_IMAGETYPE_2D,
-		.width = font_data[style]->tex_width,
-		.height = font_data[style]->tex_height,
+		.width = (int)font_data[style]->tex_width,
+		.height = (int)font_data[style]->tex_height,
 		.pixel_format = SG_PIXELFORMAT_R8,
 		.min_filter = SG_FILTER_LINEAR,
 		.mag_filter = SG_FILTER_LINEAR,
@@ -89,7 +89,7 @@ void font_create(font_t *font, font_style_t style) {
 				[0].format = SG_VERTEXFORMAT_UBYTE4N,
 				[1].buffer_index = 0,
 				[1].offset = offsetof(font_vertex_t, texcoord),
-				[1].format = SG_VERTEXFORMAT_UBYTE4N,
+				[1].format = SG_VERTEXFORMAT_USHORT2N,
 				[2].buffer_index = 0,
 				[2].offset = offsetof(font_vertex_t, position),
 				[2].format = SG_VERTEXFORMAT_FLOAT2,
@@ -180,26 +180,26 @@ void font_print(font_t *font, const char *text, const float position[2], const u
 		font_index_t *index = &font->indices[font->glyph_count*GLYPH_INDICES];
 
 		vertex[0].color = color;
-		vertex[0].texcoord[0] = (uint8_t)(glyph->s0 * UINT8_MAX);
-		vertex[0].texcoord[1] = (uint8_t)(glyph->t0 * UINT8_MAX);
+		vertex[0].texcoord[0] = (uint16_t)(glyph->s0 * UINT16_MAX);
+		vertex[0].texcoord[1] = (uint16_t)(glyph->t0 * UINT16_MAX);
 		vertex[0].position[0] = x[0];
 		vertex[0].position[1] = y[0];
 
 		vertex[1].color = color;
-		vertex[1].texcoord[0] = (uint8_t)(glyph->s0 * UINT8_MAX);
-		vertex[1].texcoord[1] = (uint8_t)(glyph->t1 * UINT8_MAX);
+		vertex[1].texcoord[0] = (uint16_t)(glyph->s0 * UINT16_MAX);
+		vertex[1].texcoord[1] = (uint16_t)(glyph->t1 * UINT16_MAX);
 		vertex[1].position[0] = x[0];
 		vertex[1].position[1] = y[1];
 
 		vertex[2].color = color;
-		vertex[2].texcoord[0] = (uint8_t)(glyph->s1 * UINT8_MAX);
-		vertex[2].texcoord[1] = (uint8_t)(glyph->t1 * UINT8_MAX);
+		vertex[2].texcoord[0] = (uint16_t)(glyph->s1 * UINT16_MAX);
+		vertex[2].texcoord[1] = (uint16_t)(glyph->t1 * UINT16_MAX);
 		vertex[2].position[0] = x[1];
 		vertex[2].position[1] = y[1];
 
 		vertex[3].color = color;
-		vertex[3].texcoord[0] = (uint8_t)(glyph->s1 * UINT8_MAX);
-		vertex[3].texcoord[1] = (uint8_t)(glyph->t0 * UINT8_MAX);
+		vertex[3].texcoord[0] = (uint16_t)(glyph->s1 * UINT16_MAX);
+		vertex[3].texcoord[1] = (uint16_t)(glyph->t0 * UINT16_MAX);
 		vertex[3].position[0] = x[1];
 		vertex[3].position[1] = y[0];
 

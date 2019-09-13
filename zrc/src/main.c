@@ -2,6 +2,10 @@
 #include <font.h>
 #include <stdio.h>
 #include <draw_visual.h>
+#include <camera.h>
+#include <ui.h>
+#include <control.h>
+#include <draw_world.h>
 
 #define SOKOL_IMPL
 #define SOKOL_WIN32_FORCE_MAIN
@@ -14,6 +18,10 @@ static zrc_t noalloc;
 static zrc_t *zrc = &noalloc;
 static font_t font;
 static draw_visual_t draw_visual;
+static camera_t camera;
+static ui_t ui;
+static control_t control;
+static draw_world_t draw_world;
 
 void draw_init() {
 	sg_setup(&(sg_desc) {
@@ -28,10 +36,12 @@ void draw_init() {
 
 	font_create(&font, FONT_CONSOLAS_16);
 	draw_visual_create(&draw_visual);
+	draw_world_create(&draw_world);
 }
 
 void draw_frame() {
-	draw_visual_tick(&draw_visual, zrc);
+	draw_world_tick(&draw_world, &camera);
+	draw_visual_tick(&draw_visual, zrc, &camera, &control);
 	font_draw(&font);
 }
 
@@ -42,37 +52,64 @@ void init(void) {
 
 	for (int i = 0; i < 1024; ++i) {
 		physics_t physics = {
-			.position = { [0] = ((float)rand() / RAND_MAX) * sapp_width(), [1] = ((float)rand() / RAND_MAX) * sapp_height() },
-			.radius = 0.5f,
-			//.velocity = { [0] = 10, [1] = 10 }
+			.type = rand() > RAND_MAX/2 ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
+			.collide_flags = ~0,
+			.collide_mask = ~0,
+			.position = { [0] = ((float)rand() / RAND_MAX) * 4096, [1] = ((float)rand() / RAND_MAX) * 4096 },
+			//.radius = 0.5f,
+			.radius = !i ? 0.5f : ((float)rand() / RAND_MAX) * 10 + 0.5f
 		};
 		ZRC_SPAWN(zrc, physics, i, &physics);
+		if (!i) {
+			//ZRC_SPAWN(zrc, physics_controller, i, &(physics_controller_t){0});
+		}
 		ZRC_SPAWN(zrc, visual, i, &(visual_t) {
-			//.color = 0xff0000ff
-			.color = rgba(0, 255, 0, 255)
+			.color = rgb(0, 255, 0)
 		});
+		flight_t flight = {
+			.max_thrust = 100,
+			.max_turn = 5
+		};
+		ZRC_SPAWN(zrc, flight, i, &flight);
+		life_t life = {
+			.max_health = 100,
+			.health = 50
+		};
+		ZRC_SPAWN(zrc, life, i, &life);
 	}
 
 	draw_init();
 }
 
 void frame(void) {
-	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		physics_t *physics = ZRC_GET(zrc, physics, i);
-		if (physics) {
-			physics->force[0] = ((float)rand() / RAND_MAX - 0.5f) * 10;
-			physics->force[1] = ((float)rand() / RAND_MAX - 0.5f) * 10;
-			physics->torque = 1;
-		}
-	}
-
 	zrc_tick(zrc);
 
+	ui_update(&ui);
+	control_update(&control, &ui, &camera, zrc);
+
+	camera_update(&camera);
+
 	font_begin(&font);
+
 	char fps[32];
 	sprintf(fps, "%.0fms %.2ffps", 1000 * zrc->fps.avg, 1.0f / zrc->fps.avg);
 	font_print(&font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
+
+	physics_t *physics = ZRC_GET(zrc, physics, control.select);
+	if (physics) {
+		char pos[32];
+		sprintf(pos, "x: %.0f y: %.0f", physics->position[0], physics->position[1]);
+		font_print(&font, pos, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
+		font_print(&font, pos, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
+
+		char spd[32];
+		cpFloat speed = cpvlength(cpv(physics->velocity[0], physics->velocity[1]));
+		sprintf(spd, "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
+		font_print(&font, spd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
+		font_print(&font, spd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
+	}
+
 	font_end(&font);
 
 	draw_frame(zrc);
@@ -88,8 +125,11 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 		.init_cb = init,
 		.frame_cb = frame,
 		.cleanup_cb = cleanup,
+		.user_data = &ui,
+		.event_userdata_cb = ui_event_cb,
 		.width = 1920/2,
 		.height = 1080/2,
+		.sample_count = 4,
 		.window_title = "-= zen rat city =-",
 	};
 }

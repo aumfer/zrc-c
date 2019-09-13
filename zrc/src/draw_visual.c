@@ -10,11 +10,11 @@ typedef uint32_t index_t;
 
 static_assert(sizeof(instance_t) % 16 == 0, "instance size");
 
-static int16_t vertices[] = {
-	INT16_MIN, INT16_MIN,
-	INT16_MIN, INT16_MAX,
-	INT16_MAX, INT16_MIN,
-	INT16_MAX, INT16_MAX
+static float vertices[] = {
+	-1, -1,
+	-1, +1,
+	+1, -1,
+	+1, +1
 };
 static uint16_t indices[] = {
 	0, 1, 3,
@@ -26,7 +26,8 @@ static uint16_t indices[] = {
 	GLSL_DEFINE("#version 430")
 #define GLSL(...) #__VA_ARGS__
 
-const char vertex_source[] = GLSL_BEGIN
+static const char vertex_source[] = GLSL_BEGIN
+#include <shaders/util.glsl>
 GLSL(
 uniform mat4 view_projection;
 
@@ -36,42 +37,40 @@ in vec2 position;
 in float angle;
 in vec4 color;
 
-mat4 mat4_scale(float x, float y, float z) {
-	return mat4(
-		vec4(x, 0.0, 0.0, 0.0),
-		vec4(0.0, y, 0.0, 0.0),
-		vec4(0.0, 0.0, z, 0.0),
-		vec4(0.0, 0.0, 0.0, 1.0)
-	);
-}
-
-mat4 mat4_translate(float x, float y, float z) {
-	return mat4(
-		vec4(1.0, 0.0, 0.0, 0.0),
-		vec4(0.0, 1.0, 0.0, 0.0),
-		vec4(0.0, 0.0, 1.0, 0.0),
-		vec4(x, y, z, 1.0)
-	);
-}
-
-out vec4 v_color;
+out vec2 f_texcoord;
+out flat float f_radius;
+out flat vec2 f_position;
+out flat vec4 f_color;
 
 void main() {
-	v_color = color;
-
-	mat4 transform = mat4_translate(position.x, position.y, 0) * mat4_scale(radius * 2, radius * 2, 1);
+	mat4 transform = mat4_translate(position.x, position.y, 0) * mat4_scale(radius * 2, radius * 2, 0);
 	vec4 p = transform * vec4(texcoord, 0, 1);
+	f_texcoord = p.xy;
 	gl_Position = view_projection * p;
+
+	f_radius = radius;
+	f_position = position;
+	f_color = color;
 });
 
-const char fragment_source[] = GLSL_BEGIN
+static const char fragment_source[] = GLSL_BEGIN
+#include <shaders/util.glsl>
+#include <shaders/sdf.glsl>
 GLSL(
-in vec4 v_color;
+in vec2 f_texcoord;
+in flat float f_radius;
+in flat vec2 f_position;
+in flat vec4 f_color;
 
-out vec4 fragColor;
+out vec4 p_color;
 
 void main() {
-	fragColor = vec4(v_color.rgb, 1);
+	float circle = sdCircle(f_texcoord - f_position, f_radius);
+	vec3 color = f_color.rgb * fill2(abs(circle));
+	float grid = grid_line(f_texcoord / 16) * 16;
+	color += vec3(0, 0, 1) * fill2(grid);
+	color = pow(color, vec3(1.0 / 2.2));
+	p_color = vec4(color, 1);
 }
 );
 
@@ -101,7 +100,7 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 			},
 			.attrs = {
 				[0].buffer_index = 0,
-				[0].format = SG_VERTEXFORMAT_SHORT2N,
+				[0].format = SG_VERTEXFORMAT_FLOAT2,
 				[0].offset = offsetof(vertex_t, texcoord),
 				[1].buffer_index = 1,
 				[1].format = SG_VERTEXFORMAT_FLOAT,
@@ -118,6 +117,9 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 				[5].buffer_index = 1,
 				[5].format = SG_VERTEXFORMAT_FLOAT,
 				[5].offset = offsetof(instance_t, spin),
+				[6].buffer_index = 1,
+				[6].format = SG_VERTEXFORMAT_UBYTE4N,
+				[6].offset = offsetof(instance_t, color),
 				[6].buffer_index = 1,
 				[6].format = SG_VERTEXFORMAT_UBYTE4N,
 				[6].offset = offsetof(instance_t, color),
@@ -143,14 +145,35 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 			},
 			.fs.source = fragment_source,
 		}),
-		.index_type = SG_INDEXTYPE_UINT16
+		.index_type = SG_INDEXTYPE_UINT16,
+		.blend = {
+			.enabled = true,
+			.src_factor_rgb = SG_BLENDFACTOR_ONE,
+			.src_factor_alpha = SG_BLENDFACTOR_ONE,
+			.dst_factor_rgb = SG_BLENDFACTOR_ONE,
+			.dst_factor_alpha = SG_BLENDFACTOR_ONE
+		}
+	});
+
+	draw_visual->glow = sg_make_pass(&(sg_pass_desc) {
+		.color_attachments[0].image = sg_make_image(&(sg_image_desc) {
+			.render_target = true,
+			.width = 512,
+			.height = 512
+		}),
+		.depth_stencil_attachment.image = sg_make_image(&(sg_image_desc) {
+			.render_target = true,
+			.width = 512,
+			.height = 512,
+			.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL
+		})
 	});
 }
 void draw_visual_destroy(draw_visual_t *draw_visual) {
 
 }
 
-void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc) {
+void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control) {
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		if (ZRC_HAS(zrc, visual, i) && ZRC_HAS(zrc, physics, i)) {
@@ -163,6 +186,9 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc) {
 				.position = { [0] = physics->position[0], [1] = physics->position[1] },
 				.color = visual->color
 			};
+			if (control->select == i) {
+				instance.color = rgb(255, 0, 0);
+			}
 			assert(instance_count < INSTANCE_BUFFER_MAX);
 			//sg_append_buffer(draw_visual->instance_buffer, &instance, sizeof(instance));
 			draw_visual->instances[instance_count] = instance;
@@ -172,11 +198,31 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc) {
 
 	sg_update_buffer(draw_visual->instance_buffer, draw_visual->instances, instance_count * sizeof(instance_t));
 
-	hmm_mat4 projection = HMM_Orthographic(0.0f, (float)sapp_width(), 0.0f, (float)sapp_height(), 0.0f, 1.0f);
+	{
+		sg_begin_pass(draw_visual->glow, &(sg_pass_action) {
+			.colors[0].action = SG_ACTION_CLEAR,
+			.colors[0].val = { 0, 0, 0, 1 }
+		});
+
+		sg_apply_pipeline(draw_visual->program);
+		sg_apply_bindings(&(sg_bindings) {
+			.vertex_buffers = {
+				[0] = draw_visual->vertex_buffer,
+				[1] = draw_visual->instance_buffer
+			},
+			.index_buffer = draw_visual->index_buffer
+		});
+		sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &camera->view_projection, sizeof(camera->view_projection));
+
+		int num_elements = _countof(indices);
+		sg_draw(0, num_elements, instance_count);
+
+		sg_end_pass();
+		sg_commit();
+	}
 
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_CLEAR,
-		.colors[0].val = { 0, 0, 0, 1 }
+		.colors[0].action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());
 
 	sg_apply_pipeline(draw_visual->program);
@@ -185,11 +231,12 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc) {
 			[0] = draw_visual->vertex_buffer,
 			[1] = draw_visual->instance_buffer
 		},
-		.index_buffer = draw_visual->index_buffer,
+		.index_buffer = draw_visual->index_buffer
 	});
-	sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &projection, sizeof(projection));
+	sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &camera->view_projection, sizeof(camera->view_projection));
 
-	sg_draw(0, _countof(indices), instance_count);
+	int num_elements = _countof(indices);
+	sg_draw(0, num_elements, instance_count);
 
 	sg_end_pass();
 	sg_commit();

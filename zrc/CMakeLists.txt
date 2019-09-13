@@ -1,9 +1,15 @@
 add_executable(zrc
+    include/control.h
+    src/control.c
+    include/draw_world.h
+    src/draw_world.c
     include/draw_visual.h
     src/draw_visual.c
     include/font.h
     src/font.c
     src/main.c
+    include/ui.h
+    src/ui.c
 )
 
 target_include_directories(zrc PUBLIC include)

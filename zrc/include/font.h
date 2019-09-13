@@ -13,7 +13,7 @@ typedef struct texture_font texture_font_t;
 
 typedef struct font_vertex {
 	uint32_t color;
-	uint8_t texcoord[2];
+	uint16_t texcoord[2];
 	float position[2];
 	//uint16_t _;
 } font_vertex_t;
