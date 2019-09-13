@@ -3,8 +3,11 @@ add_library(libzrc
     src/camera.c
     include/color.h
     src/color.c
+    src/flight.c
+    src/life.c
     include/moving_average.h
     src/moving_average.c
+    src/physics_controller.c
     src/physics.c
     include/timer.h
     src/timer.c

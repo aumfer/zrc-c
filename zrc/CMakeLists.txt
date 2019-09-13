@@ -3,6 +3,8 @@ add_executable(zrc
     src/blur.c
     include/control.h
     src/control.c
+    include/draw_blur.h
+    src/draw_blur.c
     include/draw_world.h
     src/draw_world.c
     include/draw_visual.h

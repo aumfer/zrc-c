@@ -42,22 +42,22 @@ out vec4 p_color;
 
 void main() {
 	vec2 uv = unorm(f_texcoord);
-	const vec2 resolution = vec2(1024);
+	const ivec2 resolution = textureSize(source, 0);
 
 	vec4 color = vec4(0.0);
 	vec2 off1 = vec2(1.411764705882353) * direction;
 	vec2 off2 = vec2(3.2941176470588234) * direction;
 	vec2 off3 = vec2(5.176470588235294) * direction;
-	// todo degamma reads, re-gamme results
-	// https://www.iquilezles.org/www/articles/gamma/gamma.htm
-	color += texture2D(source, uv) * 0.1964825501511404;
-	color += texture2D(source, uv + (off1 / resolution)) * 0.2969069646728344;
-	color += texture2D(source, uv - (off1 / resolution)) * 0.2969069646728344;
-	color += texture2D(source, uv + (off2 / resolution)) * 0.09447039785044732;
-	color += texture2D(source, uv - (off2 / resolution)) * 0.09447039785044732;
-	color += texture2D(source, uv + (off3 / resolution)) * 0.010381362401148057;
-	color += texture2D(source, uv - (off3 / resolution)) * 0.010381362401148057;
+	
+	color += pow(texture2D(source, uv), vec4(2.2)) * 0.1964825501511404;
+	color += pow(texture2D(source, uv + (off1 / resolution)), vec4(2.2)) * 0.2969069646728344;
+	color += pow(texture2D(source, uv - (off1 / resolution)), vec4(2.2)) * 0.2969069646728344;
+	color += pow(texture2D(source, uv + (off2 / resolution)), vec4(2.2)) * 0.09447039785044732;
+	color += pow(texture2D(source, uv - (off2 / resolution)), vec4(2.2)) * 0.09447039785044732;
+	color += pow(texture2D(source, uv + (off3 / resolution)), vec4(2.2)) * 0.010381362401148057;
+	color += pow(texture2D(source, uv - (off3 / resolution)), vec4(2.2)) * 0.010381362401148057;
 
+	color = pow(color, vec4(1.0 / 2.2));
 	p_color = color;
 });
 

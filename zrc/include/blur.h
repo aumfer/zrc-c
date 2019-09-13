@@ -3,7 +3,7 @@
 #include <sokol_gfx.h>
 
 #define BLUR_IMAGE_SIZE 1024
-#define BLUR_PASSES 4
+#define BLUR_PASSES 2
 
 typedef struct blur {
 	sg_buffer vertex_buffer, index_buffer, instance_buffer;

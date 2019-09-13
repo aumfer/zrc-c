@@ -1,6 +1,7 @@
 #include <draw_visual.h>
 #include <HandmadeMath.h>
 #include <sokol_app.h>
+#include <string.h>
 
 typedef struct vertex {
 	float texcoord[2];
@@ -21,6 +22,15 @@ static uint16_t indices[] = {
 	0, 3, 2
 };
 
+typedef struct vs_uniforms {
+	float view_projection[4][4];
+	float offset[3];
+} vs_uniforms_t;
+
+typedef struct fs_uniforms {
+	hmm_vec3 camera_position;
+} fs_uniforms_t;
+
 #define GLSL_DEFINE(x) "\n" x "\n"
 #define GLSL_BEGIN \
 	GLSL_DEFINE("#version 430")
@@ -30,6 +40,7 @@ static const char vertex_source[] = GLSL_BEGIN
 #include <shaders/util.glsl>
 GLSL(
 uniform mat4 view_projection;
+uniform vec3 offset;
 
 in vec2 texcoord;
 in float radius;
@@ -48,7 +59,7 @@ out flat uint f_flags;
 out flat vec3 f_life;
 
 void main() {
-	mat4 transform = mat4_translate(position.x, position.y, 0) /** mat4_rotate(f_angle, vec3(0, 0, 1))*/ * mat4_scale(radius * 2, radius * 2, 0);
+	mat4 transform = mat4_translate(position.x + offset.x, position.y + offset.y, offset.z) /** mat4_rotate(f_angle, vec3(0, 0, 1))*/ * mat4_scale(radius * 2, radius * 2, 0);
 	vec4 p = transform * vec4(texcoord, 0, 1);
 	f_texcoord = p.xy;
 	gl_Position = view_projection * p;
@@ -65,6 +76,8 @@ static const char fragment_source[] = GLSL_BEGIN
 #include <shaders/util.glsl>
 #include <shaders/sdf.glsl>
 GLSL(
+uniform vec3 camera_position;
+
 in vec2 f_texcoord;
 in flat float f_radius;
 in flat vec2 f_position;
@@ -80,7 +93,7 @@ vec2 p;
 vec4 life(vec4 col) {
 	float w = 0.25;
 	float circle = abs(sdSemiCircle(p, f_radius, M_PI, w));
-	col = mix(col, vec4(rgb(0x12, 0x12, 0x12), 0.1), fill(circle, w));
+	//col = mix(col, vec4(rgb(0x12, 0x12, 0x12), 0.1), fill(circle, w));
 	float health = abs(sdSemiCircle(p, f_radius - 1*w, f_life.x*M_PI, w));
 	col = mix(col, vec4(rgb(0xbb, 0x86, 0xfc), 1.0), fill(health, w));
 	float rage = abs(sdSemiCircle(p, f_radius - 2*w, f_life.z*M_PI, w));
@@ -104,40 +117,12 @@ void main() {
 	//shape /= f_radius;
 	vec4 color = f_color * fill2(shape);
 
-	//color = life(color);
+	color = life(color);
 
 	color = pow(color, vec4(1.0 / 2.2));
 	p_color = color;
 }
 );
-
-static const char blur_vertex_source[] = GLSL_BEGIN
-GLSL(
-	in vec2 texcoord;
-
-out vec2 f_texcoord;
-
-void main() {
-	f_texcoord = texcoord;
-	gl_Position = vec4(texcoord, 0, 1);
-});
-
-static const char blur_fragment_source[] = GLSL_BEGIN
-#include <shaders/util.glsl>
-GLSL(
-uniform sampler2D source;
-
-in vec2 f_texcoord;
-
-out vec4 p_color;
-
-void main() {
-	vec2 uv = unorm(f_texcoord);
-
-	vec4 color = texture2D(source, uv);
-
-	p_color = color;
-});
 
 void draw_visual_create(draw_visual_t *draw_visual) {
 	draw_visual->vertex_buffer = sg_make_buffer(&(sg_buffer_desc) {
@@ -207,13 +192,22 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 			},
 			.vs.source = vertex_source,
 			.vs.uniform_blocks = {
-				[0].size = sizeof(hmm_mat4),
+				[0].size = sizeof(vs_uniforms_t),
 				[0].uniforms = {
 					[0].name = "view_projection",
-					[0].type = SG_UNIFORMTYPE_MAT4
+					[0].type = SG_UNIFORMTYPE_MAT4,
+					[1].name = "offset",
+					[1].type = SG_UNIFORMTYPE_FLOAT3
 				}
 			},
 			.fs.source = fragment_source,
+			.fs.uniform_blocks = {
+			[0].size = sizeof(fs_uniforms_t),
+			[0].uniforms = {
+				[0].name = "camera_position",
+				[0].type = SG_UNIFORMTYPE_FLOAT3
+			}
+			},
 		}),
 		.index_type = SG_INDEXTYPE_UINT16,
 		.blend = {
@@ -239,34 +233,7 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 	});
 
 	blur_create(&draw_visual->blur, draw_visual->output);
-
-	draw_visual->add_blur = sg_make_pipeline(&(sg_pipeline_desc) {
-		.layout = {
-			.attrs = {
-				[0].buffer_index = 0,
-				[0].format = SG_VERTEXFORMAT_FLOAT2
-			}
-		},
-		.shader = sg_make_shader(&(sg_shader_desc) {
-			.attrs = {
-				[0].name = "texcoord",
-			},
-			.vs.source = blur_vertex_source,
-			.fs.source = blur_fragment_source,
-			.fs.images = {
-				[0].name = "source",
-				[0].type = SG_IMAGETYPE_2D
-			}
-		}),
-		.index_type = SG_INDEXTYPE_UINT16,
-			.blend = {
-				.enabled = true,
-				.src_factor_rgb = SG_BLENDFACTOR_ONE,
-				.src_factor_alpha = SG_BLENDFACTOR_ONE,
-				.dst_factor_rgb = SG_BLENDFACTOR_ONE,
-				.dst_factor_alpha = SG_BLENDFACTOR_ONE
-		}
-	});
+	draw_blur_create(&draw_visual->draw_blur);
 }
 void draw_visual_destroy(draw_visual_t *draw_visual) {
 
@@ -306,6 +273,14 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 
 	sg_update_buffer(draw_visual->instance_buffer, draw_visual->instances, instance_count * sizeof(instance_t));
 
+	vs_uniforms_t vs_uniforms = {
+		//.view_projection = camera->view_projection
+		.offset = {0,0,0}
+	};
+	memcpy(&vs_uniforms.view_projection, &camera->view_projection, sizeof(vs_uniforms.view_projection));
+	fs_uniforms_t fs_uniforms = {
+		.camera_position = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom)
+	};
 	{
 		sg_begin_pass(draw_visual->pass, &(sg_pass_action) {
 			.colors[0].action = SG_ACTION_CLEAR,
@@ -320,7 +295,8 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 			},
 				.index_buffer = draw_visual->index_buffer
 		});
-		sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &camera->view_projection, sizeof(camera->view_projection));
+		sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_uniforms, sizeof(vs_uniforms));
+		sg_apply_uniforms(SG_SHADERSTAGE_FS, 0, &fs_uniforms, sizeof(fs_uniforms));
 
 		int num_elements = _countof(indices);
 		sg_draw(0, num_elements, instance_count);
@@ -330,7 +306,9 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 	}
 
 	sg_image blur = blur_draw(&draw_visual->blur);
-
+	draw_blur_draw(&draw_visual->draw_blur, blur);
+	
+	vs_uniforms.offset[2] = 4;
 	{
 		sg_begin_default_pass(&(sg_pass_action) {
 			.colors[0].action = SG_ACTION_DONTCARE,
@@ -346,33 +324,11 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 			},
 				.index_buffer = draw_visual->index_buffer
 		});
-		sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &camera->view_projection, sizeof(camera->view_projection));
+		sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_uniforms, sizeof(vs_uniforms));
+		sg_apply_uniforms(SG_SHADERSTAGE_FS, 0, &fs_uniforms, sizeof(fs_uniforms));
 
 		int num_elements = _countof(indices);
 		sg_draw(0, num_elements, instance_count);
-
-		sg_end_pass();
-		sg_commit();
-	}
-
-	{
-		sg_begin_default_pass(&(sg_pass_action) {
-			.colors[0].action = SG_ACTION_DONTCARE,
-				.depth.action = SG_ACTION_DONTCARE,
-				.stencil.action = SG_ACTION_DONTCARE
-		}, sapp_width(), sapp_height());
-
-		sg_apply_pipeline(draw_visual->add_blur);
-		sg_apply_bindings(&(sg_bindings) {
-			.vertex_buffers = {
-				[0] = draw_visual->vertex_buffer
-			},
-			.index_buffer = draw_visual->index_buffer,
-			.fs_images[0] = blur
-		});
-
-		int num_elements = _countof(indices);
-		sg_draw(0, num_elements, 1);
 
 		sg_end_pass();
 		sg_commit();

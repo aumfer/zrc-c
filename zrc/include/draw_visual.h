@@ -6,6 +6,7 @@
 #include <camera.h>
 #include <control.h>
 #include <blur.h>
+#include <draw_blur.h>
 
 typedef enum instance_flags {
 	INSTANCE_NONE,
@@ -27,7 +28,8 @@ typedef struct instance {
 #define INSTANCE_BUFFER_SIZE (INSTANCE_BUFFER_MAX*sizeof(instance_t))
 
 typedef struct draw_visual {
-	sg_buffer vertex_buffer, index_buffer, instance_buffer;
+	sg_buffer vertex_buffer, index_buffer;
+	sg_buffer instance_buffer;
 	sg_pipeline program;
 
 	instance_t instances[INSTANCE_BUFFER_MAX];
@@ -36,7 +38,7 @@ typedef struct draw_visual {
 	sg_pass pass;
 
 	blur_t blur;
-	sg_pipeline add_blur;
+	draw_blur_t draw_blur;
 } draw_visual_t;
 
 void draw_visual_create(draw_visual_t *);

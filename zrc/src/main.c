@@ -137,7 +137,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 		.event_userdata_cb = ui_event_cb,
 		.width = 1920/2,
 		.height = 1080/2,
-		//.sample_count = 4,
+		.sample_count = 4,
 		.window_title = "-= zen rat city =-",
 	};
 }
