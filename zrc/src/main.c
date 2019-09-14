@@ -1,11 +1,10 @@
 #include <zrc.h>
 #include <font.h>
 #include <stdio.h>
-#include <draw_visual.h>
+#include <draw.h>
 #include <camera.h>
 #include <ui.h>
 #include <control.h>
-#include <draw_world.h>
 
 #define SOKOL_IMPL
 #define SOKOL_WIN32_FORCE_MAIN
@@ -16,37 +15,13 @@
 
 static zrc_t noalloc;
 static zrc_t *zrc = &noalloc;
-static font_t font;
-static draw_visual_t draw_visual;
+static draw_t draw;
 static camera_t camera;
 static ui_t ui;
 static control_t control;
-static draw_world_t draw_world;
-
-void draw_init() {
-	sg_setup(&(sg_desc) {
-		.mtl_device = sapp_metal_get_device(),
-		.mtl_renderpass_descriptor_cb = sapp_metal_get_renderpass_descriptor,
-		.mtl_drawable_cb = sapp_metal_get_drawable,
-		.d3d11_device = sapp_d3d11_get_device(),
-		.d3d11_device_context = sapp_d3d11_get_device_context(),
-		.d3d11_render_target_view_cb = sapp_d3d11_get_render_target_view,
-		.d3d11_depth_stencil_view_cb = sapp_d3d11_get_depth_stencil_view
-	});
-
-	font_create(&font, FONT_CONSOLAS_16);
-	draw_visual_create(&draw_visual);
-	draw_world_create(&draw_world);
-}
-
-void draw_frame() {
-	draw_world_tick(&draw_world, &camera);
-	draw_visual_tick(&draw_visual, zrc, &camera, &control);
-	font_draw(&font);
-}
 
 void init(void) {
-	_sapp_SwapIntervalEXT(0);
+	//_sapp_SwapIntervalEXT(0);
 
 	zrc_startup(zrc);
 
@@ -91,7 +66,7 @@ void init(void) {
 		});
 	}
 
-	draw_init();
+	draw_create(&draw);
 }
 
 void frame(void) {
@@ -102,41 +77,7 @@ void frame(void) {
 
 	camera_update(&camera);
 
-	font_begin(&font);
-
-	char fps[32];
-	sprintf(fps, "%.0fms %.2ffps", 1000 * zrc->fps.avg, 1.0f / zrc->fps.avg);
-	font_print(&font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
-	font_print(&font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
-
-	ui_touchstate_t pointer = ui_touch(&ui, UI_TOUCH_POINTER);
-	char ptr[32];
-	sprintf(ptr, "pointer: %.0f %.0f (%d)", pointer.point[0], pointer.point[1], control.hover);
-	font_print(&font, ptr, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
-	font_print(&font, ptr, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
-
-	char grd[32];
-	sprintf(grd, "ground: %.0f %.0f", control.ground[0], control.ground[1]);
-	font_print(&font, grd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
-	font_print(&font, grd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
-
-	physics_t *physics = ZRC_GET(zrc, physics, control.select);
-	if (physics) {
-		char pos[32];
-		sprintf(pos, "ship: %.0f %.0f", physics->position[0], physics->position[1]);
-		font_print(&font, pos, (float[2]) { [0] = 10, [1] = 70 }, 0xff333333);
-		font_print(&font, pos, (float[2]) { [0] = 11, [1] = 71 }, 0xffcccccc);
-
-		char spd[32];
-		cpFloat speed = cpvlength(cpv(physics->velocity[0], physics->velocity[1]));
-		sprintf(spd, "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
-		font_print(&font, spd, (float[2]) { [0] = 10, [1] = 90 }, 0xff333333);
-		font_print(&font, spd, (float[2]) { [0] = 11, [1] = 91 }, 0xffcccccc);
-	}
-
-	font_end(&font);
-
-	draw_frame(zrc);
+	draw_update(&draw, zrc, &ui, &control, &camera);
 }
 
 void cleanup(void) {

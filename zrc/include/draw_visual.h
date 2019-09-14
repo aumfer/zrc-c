@@ -7,6 +7,8 @@
 #include <control.h>
 #include <blur.h>
 #include <draw_blur.h>
+#include <spines.h>
+#include <draw_spines.h>
 
 typedef enum instance_flags {
 	INSTANCE_NONE,
@@ -36,6 +38,9 @@ typedef struct draw_visual {
 
 	instance_t instances[INSTANCE_BUFFER_MAX];
 
+	spines_t spines;
+	draw_spines_t draw_spines;
+
 	sg_image output;
 	sg_pass pass;
 
@@ -46,6 +51,6 @@ typedef struct draw_visual {
 void draw_visual_create(draw_visual_t *);
 void draw_visual_destroy(draw_visual_t *);
 
-void draw_visual_tick(draw_visual_t *, zrc_t *, const camera_t *, const control_t *);
+void draw_visual_tick(draw_visual_t *, zrc_t *, const camera_t *, const control_t *, float dt);
 
 #endif

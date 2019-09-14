@@ -68,10 +68,13 @@ void zrc_tick(zrc_t *zrc) {
 		ZRC_UPDATE1(zrc, life);
 		ZRC_UPDATE1(zrc, visual);
 		ZRC_UPDATE1(zrc, caster);
+
+		++zrc->frame;
+		zrc->time = stm_now();
 	}
 
 	if (frames > 1) {
-		printf("stall %d frames\n", frames);
+		printf("%u stall %d frames\n", zrc->frame, frames);
 	}
 }
 

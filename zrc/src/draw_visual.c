@@ -109,9 +109,9 @@ vec4 life(vec4 col) {
 
 void main() {
 	p = rotateZ(f_texcoord - f_position, -f_angle);
-	vec2 target = f_target.xy - f_position;
+	vec2 target = f_position - f_target.xy;
 	float atarget = atan(target.y, target.x);
-	vec2 tp = rotateZ(f_texcoord - f_position, atarget);
+	vec2 tp = rotateZ(f_texcoord - f_position, -atarget);
 
 	//float circle = abs(sdCircle(p, f_radius));
 	float circle = abs(sdSemiCircle(p, f_radius, f_life.x * M_PI, 0.5));
@@ -127,7 +127,7 @@ void main() {
 	color = life(color);
 
 	if ((f_flags & 1) == 1) {
-		color += vec4(1, 0, 0, 0.1) / (circle*circle);
+		color += vec4(f_color.gbr, 0.1) / (circle*circle);
 	}
 
 	color = pow(color, vec4(1.0 / 2.2));
@@ -247,6 +247,9 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 		.color_attachments[0].image = draw_visual->output
 	});
 
+	spines_create(&draw_visual->spines);
+	draw_spines_create(&draw_visual->draw_spines);
+
 	blur_create(&draw_visual->blur, draw_visual->output);
 	draw_blur_create(&draw_visual->draw_blur);
 }
@@ -254,8 +257,7 @@ void draw_visual_destroy(draw_visual_t *draw_visual) {
 
 }
 
-void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control) {
-	float dt = (float)stm_sec(stm_since(zrc->timer.time));
+void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		if (ZRC_HAS(zrc, visual, i) && ZRC_HAS(zrc, physics, i)) {
@@ -304,6 +306,9 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 	}
 
 	sg_update_buffer(draw_visual->instance_buffer, draw_visual->instances, instance_count * sizeof(instance_t));
+
+	spines_update(&draw_visual->spines, zrc);
+	draw_spines_draw(&draw_visual->draw_spines, &draw_visual->spines, camera);
 
 	vs_uniforms_t vs_uniforms = {
 		//.view_projection = camera->view_projection

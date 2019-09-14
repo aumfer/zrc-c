@@ -6,7 +6,7 @@
 #define BLUR_PASSES 2
 
 typedef struct blur {
-	sg_buffer vertex_buffer, index_buffer, instance_buffer;
+	sg_buffer vertex_buffer, index_buffer;
 	sg_pipeline program;
 
 	sg_image images[2];

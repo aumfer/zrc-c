@@ -165,6 +165,8 @@ typedef struct zrc {
 	timer_t timer;
 	double accumulator;
 	moving_average_t fps;
+	unsigned frame; // debug
+	uint64_t time; // debug
 
 	cpSpace *space;
 	cpCollisionHandler *collision_handler;
@@ -180,6 +182,7 @@ registry_t zrc_components(int count, ...);
 #define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc, registry)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 #define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc, registry)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
+#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, name, 1+(n))][id])
 #define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc, name)][id])
 #define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc, name)][id])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)

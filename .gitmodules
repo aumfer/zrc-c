@@ -13,3 +13,6 @@
 [submodule "handmade-math/Handmade-Math"]
 	path = handmade-math/Handmade-Math
 	url = https://github.com/HandmadeMath/Handmade-Math
+[submodule "par/par"]
+	path = par/par
+	url = https://github.com/prideout/par

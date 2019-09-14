@@ -6,7 +6,7 @@ void control_update(control_t *control, const ui_t *ui, camera_t *camera, zrc_t 
 
 	float viewport[4] = { 0, 0, (float)sapp_width(), (float)sapp_height() };
 	ui_touchstate_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
-	hmm_vec3 pick_start = hmm_unproject(HMM_Vec3(pointer.point[0], pointer.point[1], -1), camera->view_projection, viewport);
+	hmm_vec3 pick_start = hmm_unproject(HMM_Vec3(pointer.point[0], pointer.point[1], 0), camera->view_projection, viewport);
 	hmm_vec3 pick_end = hmm_unproject(HMM_Vec3(pointer.point[0], pointer.point[1], 1), camera->view_projection, viewport);
 
 	//float mx = snorm(pointer.point[0] / sapp_width());
@@ -14,10 +14,10 @@ void control_update(control_t *control, const ui_t *ui, camera_t *camera, zrc_t 
 	//hmm_vec4 screen = HMM_Vec4(mx, -my, 1, 1);
 	//hmm_vec4 world = HMM_MultiplyMat4ByVec4(camera->inv_view_projection, screen);
 
-	control->hover = physics_query_ray(zrc, (float[2]) { pick_start.X, pick_start.Y }, (float[2]) { pick_end.X, pick_end.Y }, 1);
+	control->hover = physics_query_ray(zrc, (float[2]) { pick_start.X, pick_start.Y }, (float[2]) { pick_end.X, pick_end.Y }, 16);
 
-	hmm_vec3 ro = pick_end;
-	hmm_vec3 rd = HMM_NormalizeVec3(HMM_SubtractVec3(pick_start, pick_end));
+	hmm_vec3 ro = pick_start;
+	hmm_vec3 rd = HMM_NormalizeVec3(HMM_SubtractVec3(pick_end, pick_start));
 	float worldt = isect_plane(ro, rd, HMM_Vec4(0, 0, 1, 0));
 	hmm_vec3 worldp = HMM_AddVec3(ro, HMM_MultiplyVec3f(rd, worldt));
 
@@ -38,8 +38,8 @@ void control_update(control_t *control, const ui_t *ui, camera_t *camera, zrc_t 
 		camera->position[1] = (float)(physics->position[1] + position.y);
 	}
 
-	flight_t *flight = ZRC_GET_WRITE(zrc, flight, control->select);
-	if (flight) {
+	if (ZRC_HAS(zrc, flight, control->select)) {
+		flight_t *flight = ZRC_GET_WRITE(zrc, flight, control->select);
 		flight->thrust[0] = 0;
 		flight->thrust[1] = 0;
 		if (ui_button(ui, SAPP_KEYCODE_W)) {
@@ -57,8 +57,8 @@ void control_update(control_t *control, const ui_t *ui, camera_t *camera, zrc_t 
 		}
 	}
 
-	caster_t *caster = ZRC_GET_WRITE(zrc, caster, control->select);
-	if (caster) {
+	if (ZRC_HAS(zrc, caster, control->select)) {
+		caster_t *caster = ZRC_GET_WRITE(zrc, caster, control->select);
 		for (int i = 0; i < CASTER_MAX_ABILITIES; ++i) {
 			const ability_t *ability = &zrc->ability[caster->abilities[i].ability];
 			if ((ability->target_flags & ABILITY_TARGET_POINT) == ABILITY_TARGET_POINT) {

@@ -94,7 +94,6 @@ id_t physics_query_point(zrc_t *zrc, float point[2], float radius) {
 	if (shape) {
 		id_t id = (id_t)cpShapeGetUserData(shape);
 		return id;
-		return id;
 	}
 	return ID_INVALID;
 }
