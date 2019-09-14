@@ -11,6 +11,8 @@ add_library(libzrc
     src/physics.c
     include/timer.h
     src/timer.c
+    include/zmath.h
+    src/zmath.c
     include/zrc.h
     src/zrc.c
 )

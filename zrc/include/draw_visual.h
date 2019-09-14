@@ -10,7 +10,8 @@
 
 typedef enum instance_flags {
 	INSTANCE_NONE,
-	INSTANCE_SELECTED
+	INSTANCE_HOVER = 1,
+	INSTANCE_SELECT = 2
 } instance_flags_t;
 
 typedef struct instance {
@@ -22,6 +23,7 @@ typedef struct instance {
 	uint32_t color;
 	uint32_t flags;
 	float life[3];
+	float target[4];
 } instance_t;
 
 #define INSTANCE_BUFFER_MAX (MAX_ENTITIES/4)

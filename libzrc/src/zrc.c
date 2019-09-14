@@ -5,8 +5,6 @@
 #define SOKOL_IMPL
 #include <sokol_time.h>
 #include <stdarg.h>
-#define HANDMADE_MATH_IMPLEMENTATION
-#include <HandmadeMath.h>
 
 registry_t zrc_components(int count, ...) {
 	registry_t components = 0;
@@ -24,13 +22,23 @@ void zrc_startup(zrc_t *zrc) {
 	printf("zrc %zu\n", sizeof(zrc_t));
 
 	stm_setup();
-	timer_create(&zrc->timer);
 
 	registry_startup(zrc);
 	physics_startup(zrc);
 	visual_startup(zrc);
 	flight_startup(zrc);
 	life_startup(zrc);
+
+	zrc->ability[1] = (ability_t) {
+		.name = "autoattack",
+		.target_flags = ABILITY_TARGET_POINT,
+		.range = 1024,
+		.cooldown = 2.0f/3.0f,
+		.channel = 1.0f/3.0f,
+		.mana = 1
+	};
+
+	timer_create(&zrc->timer);
 }
 void zrc_shutdown(zrc_t *zrc) {
 	life_shutdown(zrc);
@@ -59,6 +67,7 @@ void zrc_tick(zrc_t *zrc) {
 		ZRC_CLEAR(zrc, damage);
 		ZRC_UPDATE1(zrc, life);
 		ZRC_UPDATE1(zrc, visual);
+		ZRC_UPDATE1(zrc, caster);
 	}
 
 	if (frames > 1) {
@@ -95,3 +104,16 @@ void visual_delete(zrc_t *zrc, id_t id, visual_t *visual) {
 void visual_update(zrc_t *zrc, id_t id, visual_t *visual) {
 }
 
+void caster_startup(zrc_t *zrc) {
+	printf("caster %zu\n", sizeof(zrc->caster));
+}
+void caster_shutdown(zrc_t *zrc) {
+}
+void caster_create(zrc_t *zrc, id_t id, caster_t *caster) {
+
+}
+void caster_delete(zrc_t *zrc, id_t id, caster_t *caster) {
+
+}
+void caster_update(zrc_t *zrc, id_t id, caster_t *caster) {
+}

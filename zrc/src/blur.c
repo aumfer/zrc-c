@@ -1,5 +1,5 @@
 #include <blur.h>
-#include <HandmadeMath.h>
+#include <zmath.h>
 #include <sokol_app.h>
 #include <stdlib.h>
 

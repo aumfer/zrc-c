@@ -25,12 +25,15 @@ typedef uint16_t id_t;
 
 #define randf() ((float)rand() / RAND_MAX)
 
+typedef struct zrc zrc_t;
+
 typedef enum zrc_component {
 	zrc_physics,
 	zrc_visual,
 	zrc_flight,
 	zrc_life,
 	zrc_physics_controller,
+	zrc_caster,
 	zrc_component_count
 } zrc_component_t;
 
@@ -96,7 +99,54 @@ typedef struct damage {
 	float health;
 } damage_t;
 
+typedef enum ability_target_flags {
+	ABILITY_TARGET_NONE = 0,
+	ABILITY_TARGET_UNIT = 1,
+	ABILITY_TARGET_POINT = 2,
+	ABILITY_TARGET_FRIEND = 4 | ABILITY_TARGET_UNIT,
+	ABILITY_TARGET_ENEMY = 8 | ABILITY_TARGET_UNIT,
+	ABILITY_TARGET_SELF = 16 | ABILITY_TARGET_UNIT
+} ability_target_flags_t;
+
+typedef union ability_target {
+	id_t unit;
+	float point[2];
+} ability_target_t;
+
+typedef struct ability ability_t;
+
+typedef void(*ablity_cast_t)(zrc_t *, const ability_t *, id_t, const ability_target_t *);
+
+typedef struct ability {
+	const char *name;
+	ability_target_flags_t target_flags;
+	ablity_cast_t cast;
+	float range;
+	float cooldown;
+	float channel;
+	float mana;
+	float rage;
+} ability_t;
+
+typedef struct caster_ability {
+	id_t ability;
+	float uptime;
+	float downtime;
+	ability_target_t target;
+	int cast;
+} caster_ability_t;
+
+#define CASTER_MAX_ABILITIES 8
+typedef struct caster {
+	caster_ability_t abilities[CASTER_MAX_ABILITIES];
+} caster_t;
+
+#define MAX_ABILITIES 1024
+
 typedef struct zrc {
+	// static
+	ability_t ability[MAX_ABILITIES];
+
 	// persistent
 	registry_t registry[MAX_FRAMES][MAX_ENTITIES];
 	physics_t physics[MAX_FRAMES][MAX_ENTITIES];
@@ -104,6 +154,7 @@ typedef struct zrc {
 	visual_t visual[MAX_FRAMES][MAX_ENTITIES];
 	flight_t flight[MAX_FRAMES][MAX_ENTITIES];
 	life_t life[MAX_FRAMES][MAX_ENTITIES];
+	caster_t caster[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
 	uint8_t num_damage[MAX_FRAMES][MAX_ENTITIES];
@@ -114,6 +165,7 @@ typedef struct zrc {
 	timer_t timer;
 	double accumulator;
 	moving_average_t fps;
+
 	cpSpace *space;
 	cpCollisionHandler *collision_handler;
 } zrc_t;
@@ -265,6 +317,12 @@ void physics_controller_shutdown(zrc_t *);
 void physics_controller_create(zrc_t *, id_t, physics_controller_t *);
 void physics_controller_delete(zrc_t *, id_t, physics_controller_t *);
 void physics_controller_update(zrc_t *, id_t, physics_controller_t *);
+
+void caster_startup(zrc_t *);
+void caster_shutdown(zrc_t *);
+void caster_create(zrc_t *, id_t, caster_t *);
+void caster_delete(zrc_t *, id_t, caster_t *);
+void caster_update(zrc_t *, id_t, caster_t *);
 
 #ifdef __cplusplus
 }

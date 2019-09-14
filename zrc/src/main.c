@@ -71,7 +71,7 @@ void init(void) {
 			.color = color_random(255)
 		});
 		flight_t flight = {
-			.max_thrust = 100,
+			.max_thrust = 150,
 			.max_turn = 5
 		};
 		ZRC_SPAWN(zrc, flight, i, &flight);
@@ -84,6 +84,11 @@ void init(void) {
 			.rage = 50
 		};
 		ZRC_SPAWN(zrc, life, i, &life);
+		ZRC_SPAWN(zrc, caster, i, &(caster_t) {
+			.abilities = {
+				[0].ability = 1
+			}
+		});
 	}
 
 	draw_init();
@@ -104,18 +109,29 @@ void frame(void) {
 	font_print(&font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
 
+	ui_touchstate_t pointer = ui_touch(&ui, UI_TOUCH_POINTER);
+	char ptr[32];
+	sprintf(ptr, "pointer: %.0f %.0f (%d)", pointer.point[0], pointer.point[1], control.hover);
+	font_print(&font, ptr, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
+	font_print(&font, ptr, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
+
+	char grd[32];
+	sprintf(grd, "ground: %.0f %.0f", control.ground[0], control.ground[1]);
+	font_print(&font, grd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
+	font_print(&font, grd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
+
 	physics_t *physics = ZRC_GET(zrc, physics, control.select);
 	if (physics) {
 		char pos[32];
-		sprintf(pos, "x: %.0f y: %.0f", physics->position[0], physics->position[1]);
-		font_print(&font, pos, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
-		font_print(&font, pos, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
+		sprintf(pos, "ship: %.0f %.0f", physics->position[0], physics->position[1]);
+		font_print(&font, pos, (float[2]) { [0] = 10, [1] = 70 }, 0xff333333);
+		font_print(&font, pos, (float[2]) { [0] = 11, [1] = 71 }, 0xffcccccc);
 
 		char spd[32];
 		cpFloat speed = cpvlength(cpv(physics->velocity[0], physics->velocity[1]));
 		sprintf(spd, "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
-		font_print(&font, spd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
-		font_print(&font, spd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
+		font_print(&font, spd, (float[2]) { [0] = 10, [1] = 90 }, 0xff333333);
+		font_print(&font, spd, (float[2]) { [0] = 11, [1] = 91 }, 0xffcccccc);
 	}
 
 	font_end(&font);

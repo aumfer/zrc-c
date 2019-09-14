@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <HandmadeMath.h>
+#include <zmath.h>
 #include <sokol_app.h>
 
 #define FONT_TEXTURE_UNIT 0

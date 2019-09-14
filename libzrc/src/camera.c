@@ -12,4 +12,5 @@ void camera_update(camera_t *camera) {
 	camera->projection = HMM_Perspective(103.0f, w / h, 0.01f, 10000.0f);
 
 	camera->view_projection = HMM_MultiplyMat4(camera->projection, camera->view);
+	camera->inv_view_projection = hmm_inverse(camera->view_projection);
 }

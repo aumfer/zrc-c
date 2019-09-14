@@ -1,5 +1,5 @@
 #include <draw_visual.h>
-#include <HandmadeMath.h>
+#include <zmath.h>
 #include <sokol_app.h>
 #include <string.h>
 
@@ -49,6 +49,7 @@ in float angle;
 in vec4 color;
 in float flags;
 in vec3 life;
+in vec4 target;
 
 out vec2 f_texcoord;
 out flat float f_radius;
@@ -57,6 +58,7 @@ out flat float f_angle;
 out flat vec4 f_color;
 out flat uint f_flags;
 out flat vec3 f_life;
+out flat vec4 f_target;
 
 void main() {
 	mat4 transform = mat4_translate(position.x + offset.x, position.y + offset.y, offset.z) /** mat4_rotate(f_angle, vec3(0, 0, 1))*/ * mat4_scale(radius * 2, radius * 2, 0);
@@ -70,6 +72,7 @@ void main() {
 	f_color = color;
 	f_flags = floatBitsToUint(flags);
 	f_life = life;
+	f_target = target;
 });
 
 static const char fragment_source[] = GLSL_BEGIN
@@ -85,6 +88,7 @@ in flat float f_angle;
 in flat vec4 f_color;
 in flat uint f_flags;
 in flat vec3 f_life;
+in flat vec4 f_target;
 
 out vec4 p_color;
 
@@ -105,12 +109,15 @@ vec4 life(vec4 col) {
 
 void main() {
 	p = rotateZ(f_texcoord - f_position, -f_angle);
+	vec2 target = f_target.xy - f_position;
+	float atarget = atan(target.y, target.x);
+	vec2 tp = rotateZ(f_texcoord - f_position, atarget);
 
 	//float circle = abs(sdCircle(p, f_radius));
 	float circle = abs(sdSemiCircle(p, f_radius, f_life.x * M_PI, 0.5));
 	circle = min(circle, abs(sdSemiCircle(p, f_radius - 0.5, f_life.y * M_PI, 0.5)));
 	circle = min(circle, abs(sdSemiCircle(p, f_radius - 1.0, f_life.z * M_PI, 0.5)));
-	float triangle = abs(sdTriangle(p, f_radius / 2, f_radius));
+	float triangle = abs(sdTriangle(tp, f_radius / 2, f_radius));
 	triangle = min(triangle, abs(sdTriangle(p, f_radius)));
 	float shape = min(circle, triangle);
 	//shape *= 4;
@@ -118,6 +125,10 @@ void main() {
 	vec4 color = f_color * fill2(shape);
 
 	color = life(color);
+
+	if ((f_flags & 1) == 1) {
+		color += vec4(1, 0, 0, 0.1) / (circle*circle);
+	}
 
 	color = pow(color, vec4(1.0 / 2.2));
 	p_color = color;
@@ -176,6 +187,9 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 				[8].buffer_index = 1,
 				[8].format = SG_VERTEXFORMAT_FLOAT3,
 				[8].offset = offsetof(instance_t, life),
+				[9].buffer_index = 1,
+				[9].format = SG_VERTEXFORMAT_FLOAT4,
+				[9].offset = offsetof(instance_t, target),
 			}
 		},
 		.shader = sg_make_shader(&(sg_shader_desc) {
@@ -188,7 +202,8 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 				[5].name = "spin",
 				[6].name = "color",
 				[7].name = "flags",
-				[8].name = "life"
+				[8].name = "life",
+				[9].name = "target"
 			},
 			.vs.source = vertex_source,
 			.vs.uniform_blocks = {
@@ -240,6 +255,7 @@ void draw_visual_destroy(draw_visual_t *draw_visual) {
 }
 
 void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control) {
+	float dt = (float)stm_sec(stm_since(zrc->timer.time));
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		if (ZRC_HAS(zrc, visual, i) && ZRC_HAS(zrc, physics, i)) {
@@ -247,23 +263,39 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 			visual_t *visual = ZRC_GET_READ(zrc, visual, i);
 			physics_t *physics = ZRC_GET_READ(zrc, physics, i);
 
+			hmm_vec2 position = HMM_Vec2(physics->position[0], physics->position[1]);
+			hmm_vec2 velocity = HMM_Vec2(physics->velocity[0], physics->velocity[1]);
+			position = HMM_AddVec2(position, HMM_MultiplyVec2f(velocity, dt));
+
+			float angle = physics->angle + physics->angular_velocity * dt;
+
 			instance_t instance = {
 				.radius = physics->radius,
-				.angle = physics->angle,
-				.position = { [0] = physics->position[0], [1] = physics->position[1] },
+				.angle = angle,
+				.position = { [0] = position.X, [1] = position.Y },
 				.speed = { [0] = physics->velocity[0], [1] = physics->velocity[1] },
 				.spin = physics->angular_velocity,
 				.color = visual->color,
 				.flags = visual->flags
 			};
+			if (control->hover == i) {
+				instance.flags |= INSTANCE_HOVER;
+			}
 			if (control->select == i) {
-				instance.flags |= INSTANCE_SELECTED;
+				instance.flags |= INSTANCE_SELECT;
 			}
 			life_t *life = ZRC_GET(zrc, life, i);
 			if (life) {
 				instance.life[0] = life->health / life->max_health;
 				instance.life[1] = life->mana / life->max_mana;
 				instance.life[2] = life->rage / life->max_rage;
+			}
+			caster_t *caster = ZRC_GET(zrc, caster, i);
+			if (caster) {
+				instance.target[0] = caster->abilities[0].target.point[0];
+				instance.target[1] = caster->abilities[0].target.point[1];
+				//instance.target[2] = caster->abilities[1].target.unit.position[0]
+				//instance.target[3] = caster->abilities[1].target.unit.position[1]
 			}
 			//sg_append_buffer(draw_visual->instance_buffer, &instance, sizeof(instance));
 			draw_visual->instances[instance_count] = instance;

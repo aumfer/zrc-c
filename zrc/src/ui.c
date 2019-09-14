@@ -20,7 +20,7 @@ void ui_event_cb(const sapp_event*e, void*userdata) {
 		break;
 	case SAPP_EVENTTYPE_MOUSE_MOVE:
 		ui->touches[e->frame_count&UI_MASK][UI_TOUCH_POINTER][0] = e->mouse_x;
-		ui->touches[e->frame_count&UI_MASK][UI_TOUCH_POINTER][1] = e->mouse_x;
+		ui->touches[e->frame_count&UI_MASK][UI_TOUCH_POINTER][1] = sapp_height() - e->mouse_y;
 		break;
 	case SAPP_EVENTTYPE_MOUSE_SCROLL:
 		ui->touches[e->frame_count&UI_MASK][UI_TOUCH_SCROLL][0] += e->scroll_x;
@@ -58,8 +58,8 @@ ui_state_t ui_button(const ui_t *ui, int button) {
 
 ui_touchstate_t ui_touch(const ui_t *ui, int touch) {
 	ui_touchstate_t state = {
-		.point[0] = ui->touches[sapp_frame_count()&UI_MASK][UI_TOUCH_SCROLL][0],
-		.point[1] = ui->touches[sapp_frame_count()&UI_MASK][UI_TOUCH_SCROLL][1]
+		.point[0] = ui->touches[(sapp_frame_count())&UI_MASK][touch][0],
+		.point[1] = ui->touches[(sapp_frame_count())&UI_MASK][touch][1]
 	};
 	return state;
 }
