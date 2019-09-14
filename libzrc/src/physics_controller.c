@@ -36,12 +36,13 @@ void physics_controller_delete(zrc_t *zrc, id_t id, physics_controller_t *physic
 	cpBodyFree(physics_controller->body);
 }
 void physics_controller_update(zrc_t *zrc, id_t id, physics_controller_t *physics_controller) {
-	cpVect velocity = cpBodyGetVelocity(physics_controller->body);
-	velocity = cpvlerp(velocity, cpv(physics_controller->velocity[0], physics_controller->velocity[1]), 2 * TICK_RATE);
-	//velocity = cpv(physics_controller->velocity[0], physics_controller->velocity[1]);
-	cpFloat angular_velocity = cpBodyGetAngularVelocity(physics_controller->body);
-	angular_velocity = cpflerp(angular_velocity, physics_controller->angular_velocity, 2 * TICK_RATE);
-	//angular_velocity = physics_controller->angular_velocity;
+	physics_controller_velocity_t *physics_controller_velocity;
+	cpVect velocity = cpvzero;
+	float angular_velocity = 0;
+	ZRC_RECEIVE(zrc, physics_controller_velocity, id, physics_controller->num_velocities, physics_controller_velocity, {
+		velocity = cpvadd(velocity, physics_controller_velocity->velocity);
+		angular_velocity += physics_controller_velocity->angular_velocity;
+	});
 	cpBodySetVelocity(physics_controller->body, velocity);
 	cpBodySetAngularVelocity(physics_controller->body, angular_velocity);
 }

@@ -20,7 +20,7 @@ void life_update(zrc_t *zrc, id_t id, life_t *life) {
 		life->mana += 1 * TICK_RATE;
 	}
 	damage_t *damage;
-	ZRC_RECEIVE(zrc, damage, id, damage, {
+	ZRC_RECEIVE(zrc, damage, life->num_damages, id, damage, {
 		life->health = max(0, life->health - damage->health);
 	});
 	if (life->health <= 0) {

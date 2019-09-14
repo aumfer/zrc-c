@@ -33,7 +33,7 @@ static int thread(void *_) {
 	const float SMALL_SHIP = 2.5f;
 	const float LARGE_SHIP = 12.5;
 	const float CAPITAL_SHIP = 50;
-	for (int i = 0; i < 1; ++i) {
+	for (int i = 0; i < 1024; ++i) {
 		id_t id = zrc_host_put(&zrc_host, guid_create());
 
 		physics_t physics = {

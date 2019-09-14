@@ -58,22 +58,28 @@ void spines_update(spines_t *spines, zrc_t *zrc) {
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		if (ZRC_HAS(zrc, physics, i)) {
 			int num_vertices = 0;
-			for (int j = 0; j < MAX_FRAMES/2; ++j) {
-				physics_t *physics = ZRC_GET_PAST(zrc, physics, i, j);
-				spines->spine_list.vertices[spines->spine_list.num_vertices].x = physics->position.x;
-				spines->spine_list.vertices[spines->spine_list.num_vertices].y = physics->position.y;
-				++spines->spine_list.num_vertices;
-				++num_vertices;
+			for (int j = 0; j < MAX_FRAMES-1; ++j) {
+				if (ZRC_HAD_PAST(zrc, physics, i, j)) {
+					physics_t *physics = ZRC_GET_PAST(zrc, physics, i, j);
+					spines->spine_list.vertices[spines->spine_list.num_vertices].x = physics->position.x;
+					spines->spine_list.vertices[spines->spine_list.num_vertices].y = physics->position.y;
+					++spines->spine_list.num_vertices;
+					++num_vertices;
+				}
 			}
 			spines->spine_list.spine_lengths[spines->spine_list.num_spines] = num_vertices;
 			++spines->spine_list.num_spines;
 		}
 	}
 
-	parsl_mesh *mesh = parsl_mesh_from_curves_cubic(spines->context, spines->spine_list);
-	spines->mesh = mesh;
+	if (spines->spine_list.num_spines) {
+		parsl_mesh *mesh = parsl_mesh_from_lines(spines->context, spines->spine_list);
+		spines->mesh = mesh;
 
-	sg_update_buffer(spines->positions_buffer, mesh->positions, mesh->num_vertices * sizeof(parsl_position));
-	sg_update_buffer(spines->annotations_buffer, mesh->annotations, mesh->num_vertices * sizeof(parsl_annotation));
-	sg_update_buffer(spines->index_buffer, mesh->triangle_indices, mesh->num_triangles * 3 * sizeof(uint32_t));
+		sg_update_buffer(spines->positions_buffer, mesh->positions, mesh->num_vertices * sizeof(parsl_position));
+		sg_update_buffer(spines->annotations_buffer, mesh->annotations, mesh->num_vertices * sizeof(parsl_annotation));
+		sg_update_buffer(spines->index_buffer, mesh->triangle_indices, mesh->num_triangles * 3 * sizeof(uint32_t));
+	} else {
+		spines->mesh = 0;
+	}
 }

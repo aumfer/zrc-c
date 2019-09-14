@@ -49,8 +49,16 @@ void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpBodySetAngle(physics->body, physics->angle);
 	cpBodySetVelocity(physics->body, physics->velocity);
 	cpBodySetAngularVelocity(physics->body, physics->angular_velocity);
-	cpBodySetForce(physics->body, physics->force);
-	cpBodySetTorque(physics->body, physics->torque);
+
+	cpVect force = cpvzero;
+	float torque = 0;
+	physics_force_t *physics_force;
+	ZRC_RECEIVE(zrc, physics_force, id, physics->num_forces, physics_force, {
+		force = cpvadd(force, physics_force->force);
+		torque += physics_force->torque;
+	});
+	cpBodySetForce(physics->body, force);
+	cpBodySetTorque(physics->body, torque);
 }
 void physics_update(zrc_t *zrc) {
 	cpSpaceStep(zrc->space, TICK_RATE);

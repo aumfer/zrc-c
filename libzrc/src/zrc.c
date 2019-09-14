@@ -68,7 +68,6 @@ void zrc_tick(zrc_t *zrc) {
 		ZRC_UPDATE1(zrc, flight);
 		ZRC_UPDATE2(zrc, physics);
 		ZRC_UPDATE1(zrc, physics_controller);
-		ZRC_CLEAR(zrc, damage);
 		ZRC_UPDATE1(zrc, life);
 		ZRC_UPDATE0(zrc, visual);
 		ZRC_UPDATE1(zrc, caster);

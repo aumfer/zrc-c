@@ -27,20 +27,22 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	float torque = turn * flight->max_turn;
 
 	if (ZRC_HAS(zrc, physics_controller, id)) {
-		physics_controller_t *controller = ZRC_GET_WRITE(zrc, physics_controller, id);
-		controller->velocity[0] = (float)force.x;
-		controller->velocity[1] = (float)force.y;
-		controller->angular_velocity = (float)torque;
+		physics_controller_velocity_t physics_controller_velocity = {
+			.velocity = force,
+			.angular_velocity = torque
+		};
+		ZRC_SEND(zrc, physics_controller_velocity, id, &physics_controller_velocity);
 	}
 	else {
-		physics_t *set = ZRC_GET_WRITE(zrc, physics, id);
-
 		float damp = 2;
 
 		cpVect force_damp = cpvmult(physics->velocity, -damp);
 		float torque_damp = (float)(physics->angular_velocity * -damp);
 
-		set->force = cpvadd(force, force_damp);
-		set->torque = torque + torque_damp;
+		physics_force_t physics_force = {
+			.force = cpvadd(force, force_damp),
+			.torque = torque + torque_damp
+		};
+		ZRC_SEND(zrc, physics_force, id, &physics_force);
 	}
 }

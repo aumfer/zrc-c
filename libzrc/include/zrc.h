@@ -21,6 +21,9 @@ typedef uint16_t id_t;
 #define MAX_FRAMES 64
 #define MASK_FRAMES (MAX_FRAMES-1)
 
+#define MAX_MESSAGES 64
+#define MASK_MESSAGES (MAX_MESSAGES-1)
+
 #define TICK_RATE (1.0f/60.0f)
 
 #define randf() ((float)rand() / RAND_MAX)
@@ -28,6 +31,7 @@ typedef uint16_t id_t;
 typedef struct zrc zrc_t;
 
 typedef enum zrc_component {
+	zrc_registry,
 	zrc_physics,
 	zrc_visual,
 	zrc_flight,
@@ -37,12 +41,6 @@ typedef enum zrc_component {
 	zrc_ttl,
 	zrc_component_count
 } zrc_component_t;
-
-typedef enum zrc_message {
-	zrc_registry = zrc_component_count,
-	zrc_damage,
-	zrc_count
-} zrc_message_t;
 
 typedef uint16_t registry_t;
 
@@ -64,16 +62,27 @@ typedef struct physics {
 
 	cpBody *body;
 	cpShape *shape;
+
+	unsigned num_forces;
 } physics_t;
 
-typedef struct physics_controller {
-	float velocity[2];
-	float angular_velocity;
+typedef struct physics_force {
+	cpVect force;
+	float torque;
+} physics_force_t;
 
+typedef struct physics_controller {
 	cpBody *body;
 	cpConstraint *pivot;
 	cpConstraint *gear;
+
+	unsigned num_velocities;
 } physics_controller_t;
+
+typedef struct physics_controller_velocity {
+	cpVect velocity;
+	float angular_velocity;
+} physics_controller_velocity_t;
 
 typedef struct visual {
 	uint32_t color;
@@ -92,9 +101,10 @@ typedef struct life {
 	float health, max_health, strength, constitution;
 	float mana, max_mana, focus, willpower;
 	float rage, max_rage, serenity, temper;
+
+	unsigned num_damages;
 } life_t;
 
-#define MAX_DAMAGES 32
 typedef struct damage {
 	id_t from;
 	float health;
@@ -178,11 +188,15 @@ typedef struct zrc {
 	ttl_t ttl[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
-	uint8_t num_damage[MAX_FRAMES][MAX_ENTITIES];
-	damage_t damage[MAX_FRAMES][MAX_ENTITIES][MAX_DAMAGES];
+	unsigned num_damage[MAX_ENTITIES];
+	damage_t damage[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_physics_force[MAX_ENTITIES];
+	physics_force_t physics_force[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_physics_controller_velocity[MAX_ENTITIES];
+	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][MAX_MESSAGES];
 
 	unsigned frame;
-	uint64_t times[zrc_count];
+	uint64_t times[zrc_component_count];
 	timer_t timer;
 	double accumulator;
 	moving_average_t fps;
@@ -200,6 +214,7 @@ registry_t zrc_components(int count, ...);
 #define ZRC_WRITE_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 0)
 #define ZRC_NEXT_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, -1)
 
+#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, name, n)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 #define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 #define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
@@ -207,31 +222,27 @@ registry_t zrc_components(int count, ...);
 #define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc, name)][id])
 #define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc, name)][id])
 #define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc, name)][id])
+#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc, name)][id])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
-#define ZRC_RECEIVE(zrc, name, id, var, code) \
-	for (int i = 0; i < (zrc)->num_##name##[ZRC_READ_FRAME(zrc, name)][id]; ++i) { \
-		(var) = (ZRC_GET_READ(zrc, name, id)[i]); \
+#define ZRC_RECEIVE(zrc, name, id, start, var, code) \
+	for (unsigned i = start; i < (zrc)->num_##name##[id]; ++i) { \
+		(var) = &(zrc)->##name##[id][i&MASK_MESSAGES]; \
 		code; \
+		++(start); \
 	}
 
-#define ZRC_SEND(zrc, name, id, val) *ZRC_GET_WRITE(zrc, name, id)[(zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)][id]++] = *(val)
-
-// components with no state or behavior (messages)
-#define ZRC_CLEAR(zrc, name) do { \
-		uint64_t start = stm_now(); \
-		memset((zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)], 0, sizeof((zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)])); \
-		uint64_t end = stm_now(); \
-		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
-	} while (0)
+#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[id][(zrc)->num_##name##[id]++&MASK_MESSAGES] = *(val)
 
 // components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \
 		uint64_t start = stm_now(); \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
-			##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
-			##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
-			*next = *prev; \
+			if (ZRC_HAS(zrc, name, i)) { \
+				##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
+				##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
+				*next = *prev; \
+			} \
 		} \
 		uint64_t end = stm_now(); \
 		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
@@ -293,7 +304,7 @@ registry_t zrc_components(int count, ...);
 
 #define ZRC_SPAWN(zrc, name, id, value) do { \
 		assert(!ZRC_HAS(zrc, name, id)); \
-		*ZRC_GET_WRITE(zrc, registry, id) |= (1<<zrc_##name##); \
+		*ZRC_GET_WRITE(zrc, registry, id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
 		*ZRC_GET_WRITE(zrc, name, id) = *(value); \
 	} while (0)
 
