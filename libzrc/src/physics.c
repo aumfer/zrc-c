@@ -45,11 +45,11 @@ void physics_delete(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpBodyFree(physics->body);
 }
 void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
-	cpBodySetPosition(physics->body, cpv(physics->position[0], physics->position[1]));
+	cpBodySetPosition(physics->body, physics->position);
 	cpBodySetAngle(physics->body, physics->angle);
-	cpBodySetVelocity(physics->body, cpv(physics->velocity[0], physics->velocity[1]));
+	cpBodySetVelocity(physics->body, physics->velocity);
 	cpBodySetAngularVelocity(physics->body, physics->angular_velocity);
-	cpBodySetForce(physics->body, cpv(physics->force[0], physics->force[1]));
+	cpBodySetForce(physics->body, physics->force);
 	cpBodySetTorque(physics->body, physics->torque);
 }
 void physics_update(zrc_t *zrc) {
@@ -57,22 +57,19 @@ void physics_update(zrc_t *zrc) {
 }
 void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpVect position = cpBodyGetPosition(physics->body);
-	physics->position[0] = (float)position.x;
-	physics->position[1] = (float)position.y;
+	physics->position = position;
 
 	cpFloat angle = cpBodyGetAngle(physics->body);
 	physics->angle = (float)angle;
 
 	cpVect velocity = cpBodyGetVelocity(physics->body);
-	physics->velocity[0] = (float)velocity.x;
-	physics->velocity[1] = (float)velocity.y;
+	physics->velocity = velocity;
 
 	cpFloat angular_velocity = cpBodyGetAngularVelocity(physics->body);
 	physics->angular_velocity = (float)angular_velocity;
 
 	cpVect force = cpBodyGetForce(physics->body);
-	physics->force[0] = (float)force.x;
-	physics->force[1] = (float)force.y;
+	physics->force = force;
 
 	cpFloat torque = cpBodyGetTorque(physics->body);
 	physics->torque = (float)torque;

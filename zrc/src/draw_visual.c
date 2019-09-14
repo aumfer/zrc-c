@@ -257,7 +257,10 @@ void draw_visual_destroy(draw_visual_t *draw_visual) {
 
 }
 
-void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
+void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
+	float extra = (float)stm_sec(stm_since(zrc->timer.time));
+	//extra = 0; //debug
+
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		if (ZRC_HAS(zrc, visual, i) && ZRC_HAS(zrc, physics, i)) {
@@ -265,25 +268,23 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 			visual_t *visual = ZRC_GET_READ(zrc, visual, i);
 			physics_t *physics = ZRC_GET_READ(zrc, physics, i);
 
-			hmm_vec2 position = HMM_Vec2(physics->position[0], physics->position[1]);
-			hmm_vec2 velocity = HMM_Vec2(physics->velocity[0], physics->velocity[1]);
-			position = HMM_AddVec2(position, HMM_MultiplyVec2f(velocity, dt));
+			cpVect position = cpvadd(physics->position, cpvmult(physics->velocity, extra));
 
-			float angle = physics->angle + physics->angular_velocity * dt;
+			float angle = physics->angle + physics->angular_velocity * extra;
 
 			instance_t instance = {
 				.radius = physics->radius,
 				.angle = angle,
-				.position = { [0] = position.X, [1] = position.Y },
-				.speed = { [0] = physics->velocity[0], [1] = physics->velocity[1] },
+				.position = { [0] = position.x, [1] = position.y },
+				.speed = { [0] = physics->velocity.x, [1] = physics->velocity.y },
 				.spin = physics->angular_velocity,
 				.color = visual->color,
 				.flags = visual->flags
 			};
-			if (control->hover == i) {
+			if (control->target == i) {
 				instance.flags |= INSTANCE_HOVER;
 			}
-			if (control->select == i) {
+			if (control->unit == i) {
 				instance.flags |= INSTANCE_SELECT;
 			}
 			life_t *life = ZRC_GET(zrc, life, i);
@@ -294,8 +295,8 @@ void draw_visual_tick(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *ca
 			}
 			caster_t *caster = ZRC_GET(zrc, caster, i);
 			if (caster) {
-				instance.target[0] = caster->abilities[0].target.point[0];
-				instance.target[1] = caster->abilities[0].target.point[1];
+				instance.target[0] = caster->casts[0].target.point[0];
+				instance.target[1] = caster->casts[0].target.point[1];
 				//instance.target[2] = caster->abilities[1].target.unit.position[0]
 				//instance.target[3] = caster->abilities[1].target.unit.position[1]
 			}

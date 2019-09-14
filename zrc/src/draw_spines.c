@@ -44,9 +44,10 @@ in vec4 v_annotations;
 out vec4 p_color;
 
 void main() {
-	vec4 color = vec4(1, 1, 1, 0.1);
 	float d = v_annotations.x;
-	color /= (d*d);
+	vec4 color = vec4(pal(d, vec3(1), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)), 1);
+	//color = vec4(1, 0, 0, 1);
+	color /= ((1-v_annotations.x)*v_annotations.y);
 	p_color = color;
 });
 

@@ -12,4 +12,4 @@ typedef struct draw_world {
 void draw_world_create(draw_world_t *);
 void draw_world_destroy(draw_world_t *);
 
-void draw_world_tick(draw_world_t *, const camera_t *);
+void draw_world_frame(draw_world_t *, const camera_t *);

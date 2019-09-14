@@ -5,8 +5,10 @@
 #include <font.h>
 #include <ui.h>
 #include <control.h>
+#include <moving_average.h>
 
 typedef struct draw {
+	moving_average_t fps;
 	draw_visual_t draw_visual;
 	draw_world_t draw_world;
 	font_t font;
@@ -15,4 +17,4 @@ typedef struct draw {
 void draw_create(draw_t *);
 void draw_delete(draw_t *);
 
-void draw_update(draw_t *, zrc_t *, const ui_t *, const control_t *, const camera_t *camera);
+void draw_frame(draw_t *, zrc_t *, const ui_t *, const control_t *, const camera_t *camera, float dt);

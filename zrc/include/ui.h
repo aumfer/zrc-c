@@ -32,6 +32,6 @@ typedef struct ui {
 } ui_t;
 
 void ui_event_cb(const sapp_event*, void*);
-void ui_update(ui_t *);
+void ui_frame(ui_t *);
 ui_state_t ui_button(const ui_t *, int button);
 ui_touchstate_t ui_touch(const ui_t *, int touch);

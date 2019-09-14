@@ -37,11 +37,10 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 
 		float damp = 2;
 
-		cpVect force_damp = cpvmult(cpv(physics->velocity[0], physics->velocity[1]), -damp);
+		cpVect force_damp = cpvmult(physics->velocity, -damp);
 		float torque_damp = (float)(physics->angular_velocity * -damp);
 
-		set->force[0] = (float)(force.x + force_damp.x);
-		set->force[1] = (float)(force.y + force_damp.y);
+		set->force = cpvadd(force, force_damp);
 		set->torque = torque + torque_damp;
 	}
 }

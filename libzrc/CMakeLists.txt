@@ -4,6 +4,8 @@ add_library(libzrc
     include/color.h
     src/color.c
     src/flight.c
+    include/guid.h
+    src/guid.c
     src/life.c
     include/moving_average.h
     src/moving_average.c

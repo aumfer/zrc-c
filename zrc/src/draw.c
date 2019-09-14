@@ -20,53 +20,57 @@ void draw_delete(draw_t *draw) {
 
 }
 
-void draw_update(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *control, const camera_t *camera) {
-	float dt = (float)stm_sec(stm_since(zrc->time));
+void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *control, const camera_t *camera, float dt) {
+	moving_average_update(&draw->fps, dt);
 
 	font_begin(&draw->font);
 
 	char fps[32];
-	sprintf(fps, "%.0fms %.0ffps (%.2fus)", 1000 * zrc->fps.avg, 1.0f / zrc->fps.avg, dt*1000);
+	sprintf_s(fps, sizeof(fps), "%.0ffps %0.0fms", 1.0 / draw->fps.avg, zrc->fps.avg * 1000);
 	font_print(&draw->font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&draw->font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
 
 	ui_touchstate_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
 	char ptr[32];
-	sprintf(ptr, "pointer: %.0f %.0f (%d)", pointer.point[0], pointer.point[1], control->hover);
+	sprintf_s(ptr, sizeof(ptr), "point: %.0f %.0f (%d)", pointer.point[0], pointer.point[1], control->target);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
 
-	char grd[32];
-	sprintf(grd, "ground: %.0f %.0f", control->ground[0], control->ground[1]);
+	char grd[64];
+	sprintf_s(grd, sizeof(grd), "ground: %.0f %.0f", control->ground[0], control->ground[1]);
 	font_print(&draw->font, grd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
 	font_print(&draw->font, grd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
 
-	physics_t *physics = ZRC_GET(zrc, physics, control->select);
+	physics_t *physics = ZRC_GET(zrc, physics, control->unit);
 	if (physics) {
 		char pos[32];
-		sprintf(pos, "ship: %.0f %.0f", physics->position[0], physics->position[1]);
+		sprintf_s(pos, sizeof(pos), "ship: %.0f %.0f", physics->position.x, physics->position.y);
 		font_print(&draw->font, pos, (float[2]) { [0] = 10, [1] = 70 }, 0xff333333);
 		font_print(&draw->font, pos, (float[2]) { [0] = 11, [1] = 71 }, 0xffcccccc);
 
 		char spd[32];
-		cpFloat speed = cpvlength(cpv(physics->velocity[0], physics->velocity[1]));
-		sprintf(spd, "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
+		cpFloat speed = cpvlength(physics->velocity);
+		sprintf_s(spd, sizeof(spd), "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
 		font_print(&draw->font, spd, (float[2]) { [0] = 10, [1] = 90 }, 0xff333333);
 		font_print(&draw->font, spd, (float[2]) { [0] = 11, [1] = 91 }, 0xffcccccc);
 	}
 
-	if (control->hover != ID_INVALID) {
-		physics_t *physics = ZRC_GET(zrc, physics, control->hover);
+	if (control->target != ID_INVALID) {
+		physics_t *physics = ZRC_GET(zrc, physics, control->target);
 
 		char hov[32];
-		sprintf(hov, "hov: %.0f %.0f", physics->position[0], physics->position[1]);
+		sprintf_s(hov, sizeof(hov), "hov: %.0f %.0f", physics->position.x, physics->position.y);
 		font_print(&draw->font, hov, (float[2]) { [0] = 10, [1] = 110 }, 0xff333333);
 		font_print(&draw->font, hov, (float[2]) { [0] = 11, [1] = 111 }, 0xffcccccc);
 	}
 
-	draw_world_tick(&draw->draw_world, camera);
-	draw_visual_tick(&draw->draw_visual, zrc, camera, control, dt);
+	draw_world_frame(&draw->draw_world, camera);
+	draw_visual_frame(&draw->draw_visual, zrc, camera, control, dt);
 
 	font_end(&draw->font);
 	font_draw(&draw->font);
+
+	if (dt > TICK_RATE*1.5f) {
+		puts("drop frame");
+	}
 }

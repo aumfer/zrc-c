@@ -34,6 +34,7 @@ typedef enum zrc_component {
 	zrc_life,
 	zrc_physics_controller,
 	zrc_caster,
+	zrc_ttl,
 	zrc_component_count
 } zrc_component_t;
 
@@ -55,11 +56,11 @@ typedef struct physics {
 
 	float radius;
 	float angle;
-	float position[2];
-	float velocity[2];
+	cpVect position;
+	cpVect velocity;
 	float angular_velocity;
 	float torque;
-	float force[2];
+	cpVect force;
 
 	cpBody *body;
 	cpShape *shape;
@@ -117,8 +118,14 @@ typedef struct ability ability_t;
 
 typedef void(*ablity_cast_t)(zrc_t *, const ability_t *, id_t, const ability_target_t *);
 
+typedef enum ability_id {
+	ABILITY_NONE,
+	ABILITY_PROJATTACK,
+	ABILITY_BLINK,
+	ABILITY_COUNT
+} ability_id_t;
+
 typedef struct ability {
-	const char *name;
 	ability_target_flags_t target_flags;
 	ablity_cast_t cast;
 	float range;
@@ -128,18 +135,31 @@ typedef struct ability {
 	float rage;
 } ability_t;
 
-typedef struct caster_ability {
-	id_t ability;
+typedef enum cast_flags {
+	CAST_NONE,
+	CAST_WANTCAST,
+	CAST_ISCAST
+} cast_flags_t;
+
+typedef struct cast {
+	ability_id_t ability;
 	float uptime;
 	float downtime;
 	ability_target_t target;
-	int cast;
-} caster_ability_t;
+	cast_flags_t cast_flags;
+} cast_t;
 
-#define CASTER_MAX_ABILITIES 8
+typedef uint8_t cast_id_t;
+
+#define CASTER_MAX_CASTS 8
 typedef struct caster {
-	caster_ability_t abilities[CASTER_MAX_ABILITIES];
+	cast_t casts[CASTER_MAX_CASTS];
 } caster_t;
+
+typedef struct ttl {
+	float ttl;
+	float alive;
+} ttl_t;
 
 #define MAX_ABILITIES 1024
 
@@ -155,34 +175,36 @@ typedef struct zrc {
 	flight_t flight[MAX_FRAMES][MAX_ENTITIES];
 	life_t life[MAX_FRAMES][MAX_ENTITIES];
 	caster_t caster[MAX_FRAMES][MAX_ENTITIES];
+	ttl_t ttl[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
 	uint8_t num_damage[MAX_FRAMES][MAX_ENTITIES];
 	damage_t damage[MAX_FRAMES][MAX_ENTITIES][MAX_DAMAGES];
 
-	unsigned frames[zrc_count];
+	unsigned frame;
 	uint64_t times[zrc_count];
 	timer_t timer;
 	double accumulator;
 	moving_average_t fps;
-	unsigned frame; // debug
-	uint64_t time; // debug
 
+	void *user;
 	cpSpace *space;
 	cpCollisionHandler *collision_handler;
 } zrc_t;
 
 registry_t zrc_components(int count, ...);
 
-#define ZRC_PAST_FRAME(zrc, name, n) (((zrc)->frames[zrc_##name##] - (n)) & MASK_FRAMES)
+#define ZRC_PAST_FRAME(zrc, name, n) (((zrc)->frame - (n)) & MASK_FRAMES)
 #define ZRC_PREV_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 2)
 #define ZRC_READ_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 1)
 #define ZRC_WRITE_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 0)
+#define ZRC_NEXT_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, -1)
 
-#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc, registry)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc, registry)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
-#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, name, 1+(n))][id])
+#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, name, (n))][id])
+#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc, name)][id])
 #define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc, name)][id])
 #define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc, name)][id])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
@@ -195,17 +217,17 @@ registry_t zrc_components(int count, ...);
 
 #define ZRC_SEND(zrc, name, id, val) *ZRC_GET_WRITE(zrc, name, id)[(zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)][id]++] = *(val)
 
+// components with no state or behavior (messages)
 #define ZRC_CLEAR(zrc, name) do { \
 		uint64_t start = stm_now(); \
-		++(zrc)->frames[zrc_##name##]; \
 		memset((zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)], 0, sizeof((zrc)->num_##name##[ZRC_WRITE_FRAME(zrc, name)])); \
 		uint64_t end = stm_now(); \
 		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
 	} while (0)
 
+// components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \
 		uint64_t start = stm_now(); \
-		++(zrc)->frames[zrc_##name##]; \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
 			##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
 			##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
@@ -215,9 +237,9 @@ registry_t zrc_components(int count, ...);
 		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
 	} while (0)
 
+// components with no shared state
 #define ZRC_UPDATE1(zrc, name) do { \
 		uint64_t start = stm_now(); \
-		++(zrc)->frames[zrc_##name##]; \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
 			if (!ZRC_HAS(zrc, name, i)) { \
 				if (ZRC_HAD(zrc, name, i)) { \
@@ -239,9 +261,9 @@ registry_t zrc_components(int count, ...);
 		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
 	} while (0)
 
+// components with shared state
 #define ZRC_UPDATE2(zrc, name) do { \
 		uint64_t start = stm_now(); \
-		++(zrc)->frames[zrc_##name##]; \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
 			if (!ZRC_HAS(zrc, name, i)) { \
 				if (ZRC_HAD(zrc, name, i)) { \
@@ -276,16 +298,31 @@ registry_t zrc_components(int count, ...);
 	} while (0)
 
 #define ZRC_DESPAWN(zrc, name, id) (*ZRC_GET_WRITE(zrc, registry, id) &= ~(1<<zrc_##name##))
+#define ZRC_DESPAWN_ALL(zrc, id) (*ZRC_GET_WRITE(zrc, registry, id) = 0)
+
+#define ZRC_DECLARE_COMPONENT(name) \
+void zrc_##name##_startup(zrc_t *);\
+void zrc_##name##_shutdown(zrc_t *);\
+void zrc_##name##_create(zrc_t *, id_t, ##name##_t *);\
+void zrc_##name##_delete(zrc_t *, id_t, ##name##_t *);\
+void zrc_##name##_update(zrc_t *, id_t, ##name##_t *);\
+
+#define ZRC_EMPTY_COMPONENT(name) \
+void zrc_##name##_startup(zrc_t *zrc) { \
+	printf("##name## %zu\n", sizeof(zrc->##name##)); \
+} \
+void zrc_##name##_shutdown(zrc_t *zrc) { \
+} \
+void zrc_##name##_create(zrc_t *zrc, id_t id, ##name##_t *##name##) { \
+} \
+void zrc_##name##_delete(zrc_t *zrc, id_t id, ##name##_t *##name##) { \
+} \
+void zrc_##name##_update(zrc_t *zrc, id_t id, ##name##_t *##name##) { \
+} \
 
 void zrc_startup(zrc_t *);
 void zrc_shutdown(zrc_t *);
 void zrc_tick(zrc_t *);
-
-void registry_startup(zrc_t *);
-void registry_shutdown(zrc_t *);
-void registry_create(zrc_t *, id_t, registry_t *);
-void registry_delete(zrc_t *, id_t, registry_t *);
-void registry_update(zrc_t *, id_t, registry_t *);
 
 void physics_startup(zrc_t *);
 void physics_shutdown(zrc_t *);
@@ -296,12 +333,6 @@ void physics_update(zrc_t *);
 void physics_end(zrc_t *, id_t, physics_t *);
 id_t physics_query_ray(zrc_t *, float start[2], float end[2], float radius);
 id_t physics_query_point(zrc_t *, float point[2], float radius);
-
-void visual_startup(zrc_t *);
-void visual_shutdown(zrc_t *);
-void visual_create(zrc_t *, id_t, visual_t *);
-void visual_delete(zrc_t *, id_t, visual_t *);
-void visual_update(zrc_t *, id_t, visual_t *);
 
 void flight_startup(zrc_t *);
 void flight_shutdown(zrc_t *);
@@ -326,6 +357,12 @@ void caster_shutdown(zrc_t *);
 void caster_create(zrc_t *, id_t, caster_t *);
 void caster_delete(zrc_t *, id_t, caster_t *);
 void caster_update(zrc_t *, id_t, caster_t *);
+
+void ttl_startup(zrc_t *);
+void ttl_shutdown(zrc_t *);
+void ttl_create(zrc_t *, id_t, ttl_t *);
+void ttl_delete(zrc_t *, id_t, ttl_t *);
+void ttl_update(zrc_t *, id_t, ttl_t *);
 
 #ifdef __cplusplus
 }

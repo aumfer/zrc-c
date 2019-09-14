@@ -13,17 +13,17 @@ void life_delete(zrc_t *zrc, id_t id, life_t *life) {
 
 }
 void life_update(zrc_t *zrc, id_t id, life_t *life) {
-	damage_t *damage;
 	if (life->health > 1) {
 		life->health -= 1 * TICK_RATE;
 	}
 	if (life->mana < life->max_mana) {
 		life->mana += 1 * TICK_RATE;
 	}
+	damage_t *damage;
 	ZRC_RECEIVE(zrc, damage, id, damage, {
 		life->health = max(0, life->health - damage->health);
-		});
+	});
 	if (life->health <= 0) {
-		ZRC_DESPAWN(zrc, life, id);
+		ZRC_DESPAWN_ALL(zrc, id);
 	}
 }

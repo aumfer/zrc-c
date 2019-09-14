@@ -60,8 +60,8 @@ void spines_update(spines_t *spines, zrc_t *zrc) {
 			int num_vertices = 0;
 			for (int j = 0; j < MAX_FRAMES/2; ++j) {
 				physics_t *physics = ZRC_GET_PAST(zrc, physics, i, j);
-				spines->spine_list.vertices[spines->spine_list.num_vertices].x = physics->position[0];
-				spines->spine_list.vertices[spines->spine_list.num_vertices].y = physics->position[1];
+				spines->spine_list.vertices[spines->spine_list.num_vertices].x = physics->position.x;
+				spines->spine_list.vertices[spines->spine_list.num_vertices].y = physics->position.y;
 				++spines->spine_list.num_vertices;
 				++num_vertices;
 			}

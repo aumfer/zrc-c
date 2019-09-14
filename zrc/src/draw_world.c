@@ -136,7 +136,7 @@ void draw_world_destroy(draw_world_t *draw_world) {
 
 }
 
-void draw_world_tick(draw_world_t *draw_world, const camera_t *camera) {
+void draw_world_frame(draw_world_t *draw_world, const camera_t *camera) {
 	sg_begin_default_pass(&(sg_pass_action) {
 		0
 	}, sapp_width(), sapp_height());

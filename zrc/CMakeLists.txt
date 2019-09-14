@@ -26,6 +26,7 @@ target_include_directories(zrc PUBLIC include)
 target_include_directories(zrc PRIVATE src)
 
 target_link_libraries(zrc PUBLIC libzrc)
+target_link_libraries(zrc PUBLIC libzrchost)
 target_link_libraries(zrc PUBLIC par)
 target_link_libraries(zrc PUBLIC tinycthread)
 

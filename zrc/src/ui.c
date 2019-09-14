@@ -29,7 +29,7 @@ void ui_event_cb(const sapp_event*e, void*userdata) {
 	}
 }
 
-void ui_update(ui_t *ui) {
+void ui_frame(ui_t *ui) {
 	uint64_t prev = (sapp_frame_count() + 0)&UI_MASK;
 	uint64_t next = (sapp_frame_count() + 1)&UI_MASK;
 	memcpy(ui->buttons[next], ui->buttons[prev], sizeof(ui->buttons[next]));

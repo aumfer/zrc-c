@@ -21,31 +21,33 @@ registry_t zrc_components(int count, ...) {
 void zrc_startup(zrc_t *zrc) {
 	printf("zrc %zu\n", sizeof(zrc_t));
 
-	stm_setup();
-
-	registry_startup(zrc);
 	physics_startup(zrc);
-	visual_startup(zrc);
 	flight_startup(zrc);
 	life_startup(zrc);
+	ttl_startup(zrc);
 
-	zrc->ability[1] = (ability_t) {
-		.name = "autoattack",
+	zrc->ability[ABILITY_PROJATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 1024,
 		.cooldown = 2.0f/3.0f,
 		.channel = 1.0f/3.0f,
 		.mana = 1
 	};
+	zrc->ability[ABILITY_BLINK] = (ability_t) {
+		.target_flags = ABILITY_TARGET_POINT,
+		.range = 1024,
+		.cooldown = 7,
+		.channel = 3,
+		.mana = 10
+	};
 
 	timer_create(&zrc->timer);
 }
 void zrc_shutdown(zrc_t *zrc) {
+	ttl_shutdown(zrc);
 	life_shutdown(zrc);
 	flight_shutdown(zrc);
-	visual_shutdown(zrc);
 	physics_shutdown(zrc);
-	registry_shutdown(zrc);
 }
 
 void zrc_tick(zrc_t *zrc) {
@@ -58,53 +60,24 @@ void zrc_tick(zrc_t *zrc) {
 	int frames = 0;
 	while (zrc->accumulator >= TICK_RATE) {
 		zrc->accumulator -= TICK_RATE;
+		++zrc->frame;
 		++frames;
 
 		ZRC_UPDATE0(zrc, registry);
+
 		ZRC_UPDATE1(zrc, flight);
 		ZRC_UPDATE2(zrc, physics);
 		ZRC_UPDATE1(zrc, physics_controller);
 		ZRC_CLEAR(zrc, damage);
 		ZRC_UPDATE1(zrc, life);
-		ZRC_UPDATE1(zrc, visual);
+		ZRC_UPDATE0(zrc, visual);
 		ZRC_UPDATE1(zrc, caster);
-
-		++zrc->frame;
-		zrc->time = stm_now();
+		ZRC_UPDATE1(zrc, ttl);
 	}
 
 	if (frames > 1) {
-		printf("%u stall %d frames\n", zrc->frame, frames);
+		printf("stall %d frames\n", frames-1);
 	}
-}
-
-void registry_startup(zrc_t *zrc) {
-	printf("registry %zu\n", sizeof(zrc->registry));
-}
-void registry_shutdown(zrc_t *zrc) {
-
-}
-void registry_create(zrc_t *zrc, id_t id, registry_t *registry) {
-
-}
-void registry_delete(zrc_t *zrc, id_t id, registry_t *registry) {
-
-}
-void registry_update(zrc_t *zrc, id_t id, registry_t *registry) {
-}
-
-void visual_startup(zrc_t *zrc) {
-	printf("visual %zu\n", sizeof(zrc->visual));
-}
-void visual_shutdown(zrc_t *zrc) {
-}
-void visual_create(zrc_t *zrc, id_t id, visual_t *visual) {
-
-}
-void visual_delete(zrc_t *zrc, id_t id, visual_t *visual) {
-
-}
-void visual_update(zrc_t *zrc, id_t id, visual_t *visual) {
 }
 
 void caster_startup(zrc_t *zrc) {
@@ -119,4 +92,51 @@ void caster_delete(zrc_t *zrc, id_t id, caster_t *caster) {
 
 }
 void caster_update(zrc_t *zrc, id_t id, caster_t *caster) {
+	for (int i = 0; i < CASTER_MAX_CASTS; ++i) {
+		cast_t *cast = &caster->casts[i];
+		const ability_t *ability = &zrc->ability[cast->ability];
+		if ((cast->cast_flags & CAST_ISCAST) == CAST_ISCAST) {
+			if (ability->cast) {
+				ability->cast(zrc, ability, id, &cast->target);
+			}
+			cast->uptime += TICK_RATE;
+			if (cast->uptime >= ability->channel) {
+				cast->cast_flags &= ~CAST_ISCAST;
+				cast->uptime -= ability->channel;
+				cast->downtime += cast->uptime;
+				cast->uptime = 0;
+			}
+		} else {
+			cast->downtime += TICK_RATE;
+			if ((cast->cast_flags & CAST_WANTCAST) == CAST_WANTCAST) {
+				if (cast->downtime >= ability->cooldown) {
+					cast->downtime -= ability->cooldown;
+					cast->uptime += cast->downtime;
+					cast->downtime = 0;
+					if (ability->cast) {
+						ability->cast(zrc, ability, id, &cast->target);
+					}
+				}
+			}
+		}
+	}
+}
+
+void ttl_startup(zrc_t *zrc) {
+	printf("ttl %zu\n", sizeof(zrc->ttl));
+}
+void ttl_shutdown(zrc_t *zrc) {
+
+}
+void ttl_create(zrc_t *zrc, id_t id, ttl_t *ttl) {
+	puts("hi");
+}
+void ttl_delete(zrc_t *zrc, id_t id, ttl_t *ttl) {
+
+}
+void ttl_update(zrc_t *zrc, id_t id, ttl_t *ttl) {
+	ttl->alive += TICK_RATE;
+	if (ttl->alive >= ttl->ttl) {
+		ZRC_DESPAWN_ALL(zrc, id);
+	}
 }
