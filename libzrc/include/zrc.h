@@ -151,19 +151,28 @@ typedef enum cast_flags {
 	CAST_ISCAST
 } cast_flags_t;
 
-typedef struct cast {
+typedef struct caster_ability {
 	ability_id_t ability;
 	float uptime;
 	float downtime;
+
+	ability_target_t target;
+	cast_flags_t cast_flags;
+} caster_ability_t;
+
+typedef uint8_t caster_ability_id_t;
+
+typedef struct cast {
+	caster_ability_id_t caster_ability;
 	ability_target_t target;
 	cast_flags_t cast_flags;
 } cast_t;
 
-typedef uint8_t cast_id_t;
-
-#define CASTER_MAX_CASTS 8
+#define CASTER_MAX_ABLITIES 8
 typedef struct caster {
-	cast_t casts[CASTER_MAX_CASTS];
+	caster_ability_t abilities[CASTER_MAX_ABLITIES];
+
+	unsigned num_casts;
 } caster_t;
 
 typedef struct ttl {
@@ -194,6 +203,8 @@ typedef struct zrc {
 	physics_force_t physics_force[MAX_ENTITIES][MAX_MESSAGES];
 	unsigned num_physics_controller_velocity[MAX_ENTITIES];
 	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_cast[MAX_ENTITIES];
+	cast_t cast[MAX_ENTITIES][MAX_MESSAGES];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
@@ -226,10 +237,10 @@ registry_t zrc_components(int count, ...);
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
-	for (unsigned i = start; i < (zrc)->num_##name##[id]; ++i) { \
+	for (unsigned i = (*(start)); i < (zrc)->num_##name##[id]; ++i) { \
 		(var) = &(zrc)->##name##[id][i&MASK_MESSAGES]; \
 		code; \
-		++(start); \
+		++(*(start)); \
 	}
 
 #define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[id][(zrc)->num_##name##[id]++&MASK_MESSAGES] = *(val)

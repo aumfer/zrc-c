@@ -28,11 +28,11 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	if (physics) {
 		camera->zoom += physics->radius;
 
-		cpVect look = cpv(0, 16);
+		cpVect look = cpv(16, 0);
 		cpVect target = cpvrotate(look, cpvforangle(physics->angle));
 		camera->target[0] = (float)(physics->position.x /*+ physics->velocity[0]/10*/ + target.x);
 		camera->target[1] = (float)(physics->position.y /*+ physics->velocity[1]/10*/ + target.y);
-		cpVect offset = cpv(0, -16);
+		cpVect offset = cpv(-16, 0);
 		cpVect position = cpvrotate(offset, cpvforangle(physics->angle));
 		camera->position[0] = (float)(physics->position.x /*- physics->velocity[0]/10*/ + position.x);
 		camera->position[1] = (float)(physics->position.y /*- physics->velocity[1]/10*/ + position.y);
@@ -43,10 +43,10 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 		flight->thrust[0] = 0;
 		flight->thrust[1] = 0;
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
-			flight->thrust[1] += 1;
+			flight->thrust[0] += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_BACKWARD)) {
-			flight->thrust[1] -= 1;
+			flight->thrust[0] -= 1;
 		}
 		flight->turn = 0;
 		if (ui_button(ui, CONTROL_BUTTON_LEFT)) {
@@ -60,24 +60,29 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	if (ZRC_HAS(zrc, caster, control->unit)) {
 		caster_t *caster = ZRC_GET_WRITE(zrc, caster, control->unit);
 		int cast_buttons[] = { CONTROL_BUTTON_CAST0, CONTROL_BUTTON_CAST1 };
-		for (int i = 0; i < CASTER_MAX_CASTS; ++i) {
-			cast_t *cast = &caster->casts[i];
-			const ability_t *ability = &zrc->ability[cast->ability];
+		for (int i = 0; i < CASTER_MAX_ABLITIES; ++i) {
+			caster_ability_t *caster_ability = &caster->abilities[i];
+			const ability_t *ability = &zrc->ability[caster_ability->ability];
+			cast_t cast = {
+				.caster_ability = i
+			};
 			if ((ability->target_flags & ABILITY_TARGET_POINT) == ABILITY_TARGET_POINT) {
-				caster->casts[i].target.point[0] = control->ground[0];
-				caster->casts[i].target.point[1] = control->ground[1];
+				cast.target.point[0] = control->ground[0];
+				cast.target.point[1] = control->ground[1];
 			}
 			if ((ability->target_flags & ABILITY_TARGET_UNIT) == ABILITY_TARGET_UNIT) {
-				caster->casts[i].target.unit = control->target;
+				cast.target.unit = control->target;
 			}
 
 			if (i < _countof(cast_buttons)) {
 				if (ui_button(ui, cast_buttons[i])) {
-					cast->cast_flags |= CAST_WANTCAST;
+					cast.cast_flags |= CAST_WANTCAST;
 				} else {
-					cast->cast_flags &= ~CAST_WANTCAST;
+					cast.cast_flags &= ~CAST_WANTCAST;
 				}
 			}
+
+			ZRC_SEND(zrc, cast, control->unit, &cast);
 		}
 	}
 }

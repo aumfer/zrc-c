@@ -15,7 +15,7 @@ static void cast_projattack(zrc_t *zrc, const ability_t *ability, id_t caster_id
 	physics_t proj_physics = {
 		.radius = 0.1f,
 		.position = cpvadd(physics->position, cpvmult(front, physics->radius)),
-		.velocity = cpvmult(front, proj_speed)
+		.velocity = cpvmult(dir, proj_speed)
 	};
 	ZRC_SPAWN(zrc, physics, proj_id, &proj_physics);
 	ZRC_SPAWN(zrc, ttl, proj_id, &(ttl_t) {
@@ -47,7 +47,7 @@ void zrc_host_tick(zrc_host_t *zrc_host, zrc_t *zrc) {
 		registry_t *read = ZRC_GET_READ(zrc, registry, i);
 		registry_t *prev = ZRC_GET_PREV(zrc, registry, i);
 		if (*read == 0 && *prev != 0) {
-			printf("deleting %d\n", i);
+			//printf("deleting %d\n", i);
 			kh_del(zhash, &zrc_host->entities, i);
 		}
 	}

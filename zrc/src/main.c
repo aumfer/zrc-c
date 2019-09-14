@@ -68,7 +68,7 @@ static int thread(void *_) {
 		};
 		ZRC_SPAWN(zrc, life, id, &life);
 		caster_t caster = {
-			.casts = {
+			.abilities = {
 				[0].ability = 1,
 				[1].ability = 2
 			}

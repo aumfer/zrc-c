@@ -108,16 +108,17 @@ vec4 life(vec4 col) {
 }
 
 void main() {
-	p = rotateZ(f_texcoord - f_position, -f_angle);
+	p = rotateZ(f_position - f_texcoord, -f_angle - M_PI / 2);
 	vec2 target = f_position - f_target.xy;
 	float atarget = atan(target.y, target.x);
-	vec2 tp = rotateZ(f_texcoord - f_position, -atarget);
+	vec2 tp = rotateZ(f_texcoord - f_position, -atarget - M_PI / 2);
 
 	//float circle = abs(sdCircle(p, f_radius));
 	float circle = abs(sdSemiCircle(p, f_radius, f_life.x * M_PI, 0.5));
 	circle = min(circle, abs(sdSemiCircle(p, f_radius - 0.5, f_life.y * M_PI, 0.5)));
 	circle = min(circle, abs(sdSemiCircle(p, f_radius - 1.0, f_life.z * M_PI, 0.5)));
 	float triangle = abs(sdTriangle(tp, f_radius / 2, f_radius));
+	//triangle = 1e6;
 	triangle = min(triangle, abs(sdTriangle(p, f_radius)));
 	float shape = min(circle, triangle);
 	//shape *= 4;
@@ -295,8 +296,8 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 			}
 			caster_t *caster = ZRC_GET(zrc, caster, i);
 			if (caster) {
-				instance.target[0] = caster->casts[0].target.point[0];
-				instance.target[1] = caster->casts[0].target.point[1];
+				instance.target[0] = caster->abilities[0].target.point[0];
+				instance.target[1] = caster->abilities[0].target.point[1];
 				//instance.target[2] = caster->abilities[1].target.unit.position[0]
 				//instance.target[3] = caster->abilities[1].target.unit.position[1]
 			}
