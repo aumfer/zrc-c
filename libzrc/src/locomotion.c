@@ -41,14 +41,14 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	cpVect positions[NUM_THRUSTS][NUM_TURNS];
 	float angles[NUM_THRUSTS][NUM_TURNS];
 
-	locomotion_behavior_t behaviors[MAX_MESSAGES];
-	int num_behaviors = 0;
+	locomotion->num_behaviors = 0;
+
 	locomotion_behavior_t *locomotion_behavior;
-	ZRC_RECEIVE(zrc, locomotion_behavior, id, &locomotion->num_locomotion_behavior, locomotion_behavior, {
-		behaviors[num_behaviors++] = *locomotion_behavior;
+	ZRC_RECEIVE(zrc, locomotion_behavior, id, &locomotion->locomotion_behavior_index, locomotion_behavior, {
+		locomotion->behaviors[locomotion->num_behaviors++] = *locomotion_behavior;
 	});
 
-	if (!num_behaviors) {
+	if (!locomotion->num_behaviors) {
 		return;
 	}
 
@@ -65,8 +65,8 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 			angles[i][j] = angle;
 
 			double potential = 0;
-			for (int i = 0; i < num_behaviors; ++i) {
-				locomotion_behavior_t *locomotion_behavior = &behaviors[i];
+			for (int i = 0; i < locomotion->num_behaviors; ++i) {
+				locomotion_behavior_t *locomotion_behavior = &locomotion->behaviors[i];
 				potential += (*locomotion_behavior)(zrc, id, position);
 			}
 			potentials[i][j] = potential;

@@ -15,6 +15,7 @@ void draw_create(draw_t *draw) {
 	font_create(&draw->font, FONT_CONSOLAS_16);
 	draw_visual_create(&draw->draw_visual);
 	draw_world_create(&draw->draw_world);
+	draw_locomotion_create(&draw->draw_locomotion);
 }
 void draw_delete(draw_t *draw) {
 
@@ -26,7 +27,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	font_begin(&draw->font);
 
 	char fps[32];
-	sprintf_s(fps, sizeof(fps), "%.0ffps %0.0fms", 1.0 / draw->fps.avg, zrc->fps.avg * 1000);
+	sprintf_s(fps, sizeof(fps), "%.0ffps %0.0fms", 1.0 / draw->fps.avg, zrc->update_fps.avg * 1000);
 	font_print(&draw->font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&draw->font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
 
@@ -73,6 +74,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	}
 
 	draw_world_frame(&draw->draw_world, camera);
+	draw_locomotion_frame(&draw->draw_locomotion, zrc, camera, control, dt);
 	draw_visual_frame(&draw->draw_visual, zrc, camera, control, dt);
 
 	font_end(&draw->font);

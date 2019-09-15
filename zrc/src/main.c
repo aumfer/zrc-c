@@ -30,6 +30,11 @@ static int thread(void *_) {
 	zrc_startup(zrc);
 	zrc_host_startup(&zrc_host, zrc);
 
+	id_t radiant = zrc_host_put(&zrc_host, guid_create());
+	ZRC_SPAWN(zrc, relate, radiant, &(relate_t){0});
+	id_t dire = zrc_host_put(&zrc_host, guid_create());
+	ZRC_SPAWN(zrc, relate, dire, &(relate_t){0});
+
 	const float SMALL_SHIP = 2.5f;
 	const float LARGE_SHIP = 12.5;
 	const float CAPITAL_SHIP = 50;
@@ -89,6 +94,10 @@ static int thread(void *_) {
 		ZRC_SPAWN(zrc, sense, id, &(sense_t) {
 			.range = 250
 		});
+		relate_t relate = {
+			.to[0] = {.id = randf() > 0.5 ? radiant : dire, .value = 1 }
+		};
+		ZRC_SPAWN(zrc, relate, id, &relate);
 	}
 
 	for (;;) {
@@ -101,8 +110,6 @@ static int thread(void *_) {
 void init(void) {
 	stm_setup();
 	//_sapp_SwapIntervalEXT(0);
-
-	timer_create(&timer);
 
 	thrd_create(&thrd, thread, 0);
 

@@ -18,7 +18,7 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 	
 	hmm_vec3 ro = pick_start;
-	ro = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom);
+	//ro = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom);
 	hmm_vec3 rd = HMM_NormalizeVec3(HMM_SubtractVec3(pick_end, pick_start));
 	float worldt = isect_plane(ro, rd, HMM_Vec4(0, 0, 1, 0));
 	hmm_vec3 worldp = HMM_AddVec3(ro, HMM_MultiplyVec3f(rd, worldt));

@@ -5,6 +5,8 @@ add_executable(zrc
     src/control.c
     include/draw_blur.h
     src/draw_blur.c
+    include/draw_locomotion.h
+    src/draw_locomotion.c
     include/draw_world.h
     src/draw_world.c
     include/draw_spines.h

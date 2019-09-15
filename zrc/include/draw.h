@@ -6,12 +6,14 @@
 #include <ui.h>
 #include <control.h>
 #include <moving_average.h>
+#include <draw_locomotion.h>
 
 typedef struct draw {
 	moving_average_t fps;
 	draw_visual_t draw_visual;
 	draw_world_t draw_world;
 	font_t font;
+	draw_locomotion_t draw_locomotion;
 } draw_t;
 
 void draw_create(draw_t *);

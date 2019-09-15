@@ -22,7 +22,7 @@ void life_update(zrc_t *zrc, id_t id, life_t *life) {
 	};
 
 	damage_t *damage;
-	ZRC_RECEIVE(zrc, damage, id, &life->num_damages, damage, {
+	ZRC_RECEIVE(zrc, damage, id, &life->damage_index, damage, {
 		float taken = damage->health * (1 / max(1, life->strength/100));
 		life->health = max(0, life->health - taken);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#define MOVING_AVERAGE_COUNT 16
+#define MOVING_AVERAGE_COUNT 32
 #define MOVING_AVERAGE_MASK ((MOVING_AVERAGE_COUNT)-1)
 
 typedef struct moving_average {

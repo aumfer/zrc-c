@@ -21,7 +21,7 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	int num_thrusts = 0;
 
 	flight_thrust_t *flight_thrust;
-	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->num_thrusts, flight_thrust, {
+	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->thrust_index, flight_thrust, {
 		cpVect thrust = cpv(flight_thrust->thrust[0], flight_thrust->thrust[1]);
 		//thrust.x = max(0, thrust.x);
 		thrust = cpvclamp(thrust, 1);

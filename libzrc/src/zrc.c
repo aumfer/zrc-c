@@ -80,7 +80,7 @@ void zrc_tick(zrc_t *zrc) {
 	timer_update(&zrc->timer);
 
 	double dts = stm_sec(zrc->timer.dt);
-	moving_average_update(&zrc->fps, (float)dts);
+	moving_average_update(&zrc->tick_fps, (float)dts);
 
 	zrc->accumulator += dts;
 	int frames = 0;
@@ -102,6 +102,14 @@ void zrc_tick(zrc_t *zrc) {
 		ZRC_UPDATE1(zrc, locomotion);
 		ZRC_UPDATE1(zrc, seek);
 		ZRC_UPDATE1(zrc, sense);
+		ZRC_UPDATE0(zrc, relate);
+
+		uint64_t update_ticks = 0;
+		for (int i = 0; i < zrc_component_count; ++i) {
+			update_ticks += zrc->times[i];
+		}
+		float update_sec = (float)stm_sec(update_ticks);
+		moving_average_update(&zrc->update_fps, update_sec);
 	}
 
 	if (frames > 1) {

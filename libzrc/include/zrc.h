@@ -46,6 +46,7 @@ typedef enum zrc_component {
 	zrc_locomotion,
 	zrc_seek,
 	zrc_sense,
+	zrc_relate,
 	zrc_component_count
 } zrc_component_t;
 
@@ -72,7 +73,7 @@ typedef struct physics {
 	cpBody *body;
 	cpShape *shape;
 
-	unsigned num_forces;
+	unsigned force_index;
 } physics_t;
 
 typedef struct physics_force {
@@ -85,7 +86,7 @@ typedef struct physics_controller {
 	cpConstraint *pivot;
 	cpConstraint *gear;
 
-	unsigned num_velocities;
+	unsigned velocity_index;
 } physics_controller_t;
 
 typedef struct physics_controller_velocity {
@@ -110,7 +111,7 @@ typedef struct flight {
 	float max_thrust;
 	float max_turn;
 
-	unsigned num_thrusts;
+	unsigned thrust_index;
 } flight_t;
 
 typedef struct life {
@@ -118,7 +119,7 @@ typedef struct life {
 	float mana, max_mana, focus, willpower;
 	float rage, max_rage, serenity, temper;
 
-	unsigned num_damages;
+	unsigned damage_index;
 } life_t;
 
 typedef struct damage {
@@ -190,7 +191,7 @@ typedef struct cast {
 typedef struct caster {
 	caster_ability_t abilities[CASTER_MAX_ABLITIES];
 
-	unsigned num_casts;
+	unsigned cast_index;
 } caster_t;
 
 typedef struct ttl {
@@ -213,10 +214,13 @@ typedef struct contact_damage {
 	ttl_t ttl;
 } contact_damage_t;
 
-typedef double(*locomotion_behavior_t)(zrc_t *, id_t, cpVect point);
+typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point);
 
 typedef struct locomotion {
-	unsigned num_locomotion_behavior;
+	locomotion_behavior_t behaviors[MAX_MESSAGES];
+	int num_behaviors;
+
+	unsigned locomotion_behavior_index;
 } locomotion_t;
 
 typedef struct seek_to {
@@ -225,7 +229,7 @@ typedef struct seek_to {
 
 typedef struct seek {
 	cpVect point;
-	unsigned num_seeks;
+	unsigned seek_index;
 } seek_t;
 
 #define SENSE_MAX_ENTITIES 64
@@ -236,6 +240,16 @@ typedef struct sense {
 	id_t entities[SENSE_MAX_ENTITIES];
 	unsigned num_entities;
 } sense_t;
+
+typedef struct relate_to {
+	id_t id;
+	float value;
+} relate_to_t;
+
+#define RELATE_MAX_TO 64
+typedef struct relate {
+	relate_to_t to[RELATE_MAX_TO];
+} relate_t;
 
 typedef struct zrc {
 	// static
@@ -254,6 +268,7 @@ typedef struct zrc {
 	locomotion_t locomotion[MAX_FRAMES][MAX_ENTITIES];
 	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
 	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
+	relate_t relate[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
 	unsigned num_damage[MAX_ENTITIES];
@@ -275,7 +290,8 @@ typedef struct zrc {
 	uint64_t times[zrc_component_count];
 	timer_t timer;
 	double accumulator;
-	moving_average_t fps;
+	moving_average_t tick_fps;
+	moving_average_t update_fps;
 
 	void *user;
 	cpSpace *space;
@@ -314,7 +330,8 @@ registry_t zrc_components(int count, ...);
 #define ZRC_UPDATE0(zrc, name) do { \
 		uint64_t start = stm_now(); \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
-			/*if (ZRC_HAS(zrc, name, i))*/ { \
+			int ignore_registry = zrc_##name## == zrc_registry; /*temp*/ \
+			if (ignore_registry || ZRC_HAS(zrc, name, i)) { \
 				##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
 				##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
 				*next = *prev; \

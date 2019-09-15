@@ -14,7 +14,7 @@ void caster_delete(zrc_t *zrc, id_t id, caster_t *caster) {
 }
 void caster_update(zrc_t *zrc, id_t id, caster_t *caster) {
 	cast_t *cast;
-	ZRC_RECEIVE(zrc, cast, id, &caster->num_casts, cast, {
+	ZRC_RECEIVE(zrc, cast, id, &caster->cast_index, cast, {
 		caster_ability_t *caster_ability = &caster->abilities[cast->caster_ability];
 		if ((cast->cast_flags & CAST_WANTCAST) == CAST_WANTCAST) {
 			caster_ability->cast_flags |= CAST_WANTCAST;
