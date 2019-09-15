@@ -13,16 +13,31 @@ void life_delete(zrc_t *zrc, id_t id, life_t *life) {
 
 }
 void life_update(zrc_t *zrc, id_t id, life_t *life) {
-	if (life->health > 1) {
-		life->health -= 1 * TICK_RATE;
-	}
-	if (life->mana < life->max_mana) {
-		life->mana += 1 * TICK_RATE;
-	}
+	life->health = min(life->max_health, life->health + (life->constitution/100) * TICK_RATE);
+	life->mana = min(life->max_mana, life->mana + (life->willpower/100) * TICK_RATE);
+	life->rage = max(0, life->rage - (life->serenity/100) * TICK_RATE);
+
+	damage_t selfharm = {
+		.from = id
+	};
+
 	damage_t *damage;
 	ZRC_RECEIVE(zrc, damage, id, &life->num_damages, damage, {
-		life->health = max(0, life->health - damage->health);
+		float taken = damage->health * (1 / max(1, life->strength/100));
+		life->health = max(0, life->health - taken);
+
+		float rage = taken * ((life->temper/100) * TICK_RATE);
+		float outrage = (life->rage + rage) - life->max_rage;
+		life->rage = min(life->max_rage, life->rage + rage);
+
+		if (outrage > 0) {
+			puts("ow");
+			selfharm.health += outrage;
+		}
 	});
+	if (selfharm.health > 0) {
+		ZRC_SEND(zrc, damage, id, &selfharm);
+	}
 	if (life->health <= 0) {
 		ZRC_DESPAWN_ALL(zrc, id);
 	}

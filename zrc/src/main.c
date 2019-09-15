@@ -63,12 +63,18 @@ static int thread(void *_) {
 		};
 		ZRC_SPAWN(zrc, flight, id, &flight);
 		life_t life = {
-			.max_health = 100,
 			.health = 75,
-			.max_mana = 100,
+			.max_health = 100,
+			.strength = 100,
+			.constitution = 100,
 			.mana = 25,
+			.max_mana = 100,
+			.focus = 100,
+			.willpower = 100,
+			.rage = 50,
 			.max_rage = 100,
-			.rage = 50
+			.serenity = 100,
+			.temper = 100
 		};
 		ZRC_SPAWN(zrc, life, id, &life);
 		caster_t caster = {

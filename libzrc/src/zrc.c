@@ -116,10 +116,8 @@ void ttl_shutdown(zrc_t *zrc) {
 
 }
 void ttl_create(zrc_t *zrc, id_t id, ttl_t *ttl) {
-	puts("hi");
 }
 void ttl_delete(zrc_t *zrc, id_t id, ttl_t *ttl) {
-	puts("bye");
 }
 void ttl_update(zrc_t *zrc, id_t id, ttl_t *ttl) {
 	ttl->alive += TICK_RATE;
