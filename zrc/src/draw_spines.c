@@ -30,7 +30,7 @@ void main() {
 	v_position = position;
 	v_annotations = annotations;
 
-	vec4 p = vec4(position, 0, 1);
+	vec4 p = vec4(position, 4, 1);
 	gl_Position = view_projection * p;
 });
 
@@ -44,10 +44,10 @@ in vec4 v_annotations;
 out vec4 p_color;
 
 void main() {
-	float d = v_annotations.x;
-	vec4 color = vec4(pal(d, vec3(1), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)), 1);
+	vec4 color = vec4(pal(v_annotations.x, vec3(1), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)), 1);
 	//color = vec4(1, 0, 0, 1);
-	color /= ((1-v_annotations.x)*v_annotations.y);
+	color /= ((v_annotations.x)+abs(v_annotations.y));
+	color *= 10;
 	p_color = color;
 });
 

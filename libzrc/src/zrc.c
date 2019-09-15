@@ -29,8 +29,8 @@ void zrc_startup(zrc_t *zrc) {
 	zrc->ability[ABILITY_PROJATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 1024,
-		.cooldown = 2.0f/3.0f,
-		.channel = 1.0f/3.0f,
+		.cooldown = 2.0f/3.0f/2.0f,
+		.channel = 1.0f/3.0f/2.0f,
 		.mana = 1
 	};
 	zrc->ability[ABILITY_BLINK] = (ability_t) {
@@ -141,7 +141,7 @@ void ttl_create(zrc_t *zrc, id_t id, ttl_t *ttl) {
 	puts("hi");
 }
 void ttl_delete(zrc_t *zrc, id_t id, ttl_t *ttl) {
-
+	puts("bye");
 }
 void ttl_update(zrc_t *zrc, id_t id, ttl_t *ttl) {
 	ttl->alive += TICK_RATE;

@@ -7,7 +7,7 @@ static void cast_projattack(zrc_t *zrc, const ability_t *ability, id_t caster_id
 	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
 
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
-	float proj_speed = 100;
+	float proj_speed = 250;
 
 	cpVect front = cpvforangle(physics->angle);
 	cpVect target_point = cpv(target->point[0], target->point[1]);

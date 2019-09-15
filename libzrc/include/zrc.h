@@ -249,7 +249,7 @@ registry_t zrc_components(int count, ...);
 #define ZRC_UPDATE0(zrc, name) do { \
 		uint64_t start = stm_now(); \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
-			if (ZRC_HAS(zrc, name, i)) { \
+			/*if (ZRC_HAS(zrc, name, i))*/ { \
 				##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
 				##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
 				*next = *prev; \

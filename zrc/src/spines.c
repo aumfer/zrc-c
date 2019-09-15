@@ -39,7 +39,7 @@ void spines_create(spines_t *spines) {
 	spines->context = parsl_create_context((parsl_config) {
 		.thickness = 1,
 		.flags = PARSL_FLAG_ANNOTATIONS,
-		//.u_mode = PAR_U_MODE_DISTANCE,
+		.u_mode = PAR_U_MODE_DISTANCE,
 		//.streamlines_seed_spacing = MAP_SCALE,
 		//.streamlines_seed_viewport.right = WORLD_SIZE,
 		//.streamlines_seed_viewport.top = WORLD_SIZE
@@ -61,14 +61,17 @@ void spines_update(spines_t *spines, zrc_t *zrc) {
 			for (int j = 0; j < MAX_FRAMES-1; ++j) {
 				if (ZRC_HAD_PAST(zrc, physics, i, j)) {
 					physics_t *physics = ZRC_GET_PAST(zrc, physics, i, j);
-					spines->spine_list.vertices[spines->spine_list.num_vertices].x = physics->position.x;
-					spines->spine_list.vertices[spines->spine_list.num_vertices].y = physics->position.y;
-					++spines->spine_list.num_vertices;
+					spines->spine_list.vertices[spines->spine_list.num_vertices + num_vertices].x = physics->position.x;
+					spines->spine_list.vertices[spines->spine_list.num_vertices + num_vertices].y = physics->position.y;
+					
 					++num_vertices;
 				}
 			}
-			spines->spine_list.spine_lengths[spines->spine_list.num_spines] = num_vertices;
-			++spines->spine_list.num_spines;
+			if (num_vertices > 1) {
+				spines->spine_list.num_vertices += num_vertices;
+				spines->spine_list.spine_lengths[spines->spine_list.num_spines] = num_vertices;
+				++spines->spine_list.num_spines;
+			}
 		}
 	}
 
