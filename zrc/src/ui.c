@@ -36,30 +36,30 @@ void ui_frame(ui_t *ui) {
 	memcpy(ui->touches[next], ui->touches[prev], sizeof(ui->touches[next]));
 }
 
-ui_state_t ui_button(const ui_t *ui, int button) {
-	ui_state_t state = UI_INVALID;
+ui_buttonstate_t ui_button(const ui_t *ui, ui_button_t button) {
+	ui_buttonstate_t state = BUTTON_INVALID;
 
 	if (ui->buttons[sapp_frame_count()&UI_MASK][button]) {
 		if (ui->buttons[(sapp_frame_count()-1)&UI_MASK][button]) {
-			state = UI_DOWN;
+			state = BUTTON_DOWN;
 		} else {
-			state = UI_PRESSED;
+			state = BUTTON_PRESSED;
 		}
 	} else {
 		if (ui->buttons[(sapp_frame_count() - 1)&UI_MASK][button]) {
-			state = UI_RELEASED;
+			state = BUTTON_RELEASED;
 		} else {
-			state = UI_UP;
+			state = BUTTON_UP;
 		}
 	}
-	assert(state != UI_INVALID);
+	assert(state != BUTTON_INVALID);
 	return state;
 }
 
-ui_touchstate_t ui_touch(const ui_t *ui, int touch) {
-	ui_touchstate_t state = {
-		.point[0] = ui->touches[(sapp_frame_count())&UI_MASK][touch][0],
-		.point[1] = ui->touches[(sapp_frame_count())&UI_MASK][touch][1]
+ui_touchpoint_t ui_touch(const ui_t *ui, ui_touch_t touch) {
+	ui_touchpoint_t state = {
+		.x = ui->touches[(sapp_frame_count())&UI_MASK][touch][0],
+		.y = ui->touches[(sapp_frame_count())&UI_MASK][touch][1]
 	};
 	return state;
 }

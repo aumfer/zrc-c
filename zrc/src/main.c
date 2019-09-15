@@ -50,6 +50,9 @@ static int thread(void *_) {
 		if (!i) {
 			control.unit = id;
 			//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
+		}  {
+			ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
+			ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		}
 		ZRC_SPAWN(zrc, visual, id, &(visual_t) {
 			.color = color_random(255)
@@ -77,6 +80,9 @@ static int thread(void *_) {
 			}
 		};
 		ZRC_SPAWN(zrc, caster, id, &caster);
+		ZRC_SPAWN(zrc, sense, id, &(sense_t) {
+			.range = 250
+		});
 	}
 
 	for (;;) {

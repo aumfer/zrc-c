@@ -9,12 +9,15 @@ add_library(libzrc
     include/guid.h
     src/guid.c
     src/life.c
+    src/locomotion.c
     include/moving_average.h
     src/moving_average.c
     src/physics_controller.c
     src/physics.c
+    src/seek.c
     include/timer.h
     src/timer.c
+    src/ttl.c
     include/zmath.h
     src/zmath.c
     include/zrc.h

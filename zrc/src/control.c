@@ -2,21 +2,23 @@
 #include <zmath.h>
 
 void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *zrc) {
-	camera->zoom = 64 - ui_touch(ui, UI_TOUCH_SCROLL).point[1];
+	camera->zoom = 64 - ui_touch(ui, UI_TOUCH_SCROLL).y;
 
 	float viewport[4] = { 0, 0, (float)sapp_width(), (float)sapp_height() };
-	ui_touchstate_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
-	hmm_vec3 pick_start = hmm_unproject(HMM_Vec3(pointer.point[0], pointer.point[1], 0), camera->view_projection, viewport);
-	hmm_vec3 pick_end = hmm_unproject(HMM_Vec3(pointer.point[0], pointer.point[1], 1), camera->view_projection, viewport);
+	ui_touchpoint_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
+	hmm_vec3 pick_start = hmm_unproject(HMM_Vec3(pointer.x, pointer.y, 0), camera->view_projection, viewport);
+	hmm_vec3 pick_end = hmm_unproject(HMM_Vec3(pointer.x, pointer.y, 1), camera->view_projection, viewport);
 
 	//float mx = snorm(pointer.point[0] / sapp_width());
 	//float my = snorm(pointer.point[1] / sapp_width());
 	//hmm_vec4 screen = HMM_Vec4(mx, -my, 1, 1);
 	//hmm_vec4 world = HMM_MultiplyMat4ByVec4(camera->inv_view_projection, screen);
 
-	control->target = physics_query_ray(zrc, (float[2]) { pick_start.X, pick_start.Y }, (float[2]) { pick_end.X, pick_end.Y }, 16);
+	control->target = physics_query_ray(zrc, cpv(pick_start.X, pick_start.Y), cpv(pick_end.X, pick_end.Y), 16);
 
+	
 	hmm_vec3 ro = pick_start;
+	ro = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom);
 	hmm_vec3 rd = HMM_NormalizeVec3(HMM_SubtractVec3(pick_end, pick_start));
 	float worldt = isect_plane(ro, rd, HMM_Vec4(0, 0, 1, 0));
 	hmm_vec3 worldp = HMM_AddVec3(ro, HMM_MultiplyVec3f(rd, worldt));
@@ -39,32 +41,33 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	}
 
 	if (ZRC_HAS(zrc, flight, control->unit)) {
-		flight_t *flight = ZRC_GET_WRITE(zrc, flight, control->unit);
-		flight->thrust[0] = 0;
-		flight->thrust[1] = 0;
+		flight_thrust_t flight_thrust = { 0 };
+		flight_thrust.thrust[0] = 0;
+		flight_thrust.thrust[1] = 0;
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
-			flight->thrust[0] += 1;
+			flight_thrust.thrust[0] += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_BACKWARD)) {
-			flight->thrust[0] -= 1;
+			flight_thrust.thrust[0] -= 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_STRAFE_LEFT)) {
-			flight->thrust[1] += 1;
+			flight_thrust.thrust[1] += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_STRAFE_RIGHT)) {
-			flight->thrust[1] -= 1;
+			flight_thrust.thrust[1] -= 1;
 		}
-		flight->turn = 0;
+		flight_thrust.turn = 0;
 		if (ui_button(ui, CONTROL_BUTTON_LEFT)) {
-			flight->turn += 1;
+			flight_thrust.turn += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_RIGHT)) {
-			flight->turn -= 1;
+			flight_thrust.turn -= 1;
 		}
+		ZRC_SEND(zrc, flight_thrust, control->unit, &flight_thrust);
 	}
 
 	if (ZRC_HAS(zrc, caster, control->unit)) {
-		caster_t *caster = ZRC_GET_WRITE(zrc, caster, control->unit);
+		caster_t *caster = ZRC_GET(zrc, caster, control->unit);
 		int cast_buttons[] = {
 			CONTROL_BUTTON_CAST0,
 			CONTROL_BUTTON_CAST1,
@@ -99,5 +102,12 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 			ZRC_SEND(zrc, cast, control->unit, &cast);
 		}
+	}
+
+	if (ui_button(ui, SAPP_MOUSEBUTTON_MIDDLE)) {
+		seek_to_t seek_to = {
+			.point = cpv(control->ground[0], control->ground[1])
+		};
+		ZRC_SEND(zrc, seek_to, control->unit, &seek_to);
 	}
 }

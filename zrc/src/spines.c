@@ -83,6 +83,6 @@ void spines_update(spines_t *spines, zrc_t *zrc) {
 		sg_update_buffer(spines->annotations_buffer, mesh->annotations, mesh->num_vertices * sizeof(parsl_annotation));
 		sg_update_buffer(spines->index_buffer, mesh->triangle_indices, mesh->num_triangles * 3 * sizeof(uint32_t));
 	} else {
-		spines->mesh = 0;
+		//spines->mesh = 0;
 	}
 }

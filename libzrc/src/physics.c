@@ -90,9 +90,9 @@ void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
 	physics->torque = (float)torque;
 }
 
-id_t physics_query_ray(zrc_t *zrc, float start[2], float end[2], float radius) {
+id_t physics_query_ray(zrc_t *zrc, cpVect start, cpVect end, float radius) {
 	cpSegmentQueryInfo info;
-	cpShape *shape = cpSpaceSegmentQueryFirst(zrc->space, cpv(start[0], start[1]), cpv(end[0], end[1]), radius, CP_SHAPE_FILTER_ALL, &info);
+	cpShape *shape = cpSpaceSegmentQueryFirst(zrc->space, start, end, radius, CP_SHAPE_FILTER_ALL, &info);
 	if (shape) {
 		id_t id = (id_t)cpShapeGetUserData(shape);
 		return id;
@@ -100,9 +100,9 @@ id_t physics_query_ray(zrc_t *zrc, float start[2], float end[2], float radius) {
 	return ID_INVALID;
 }
 
-id_t physics_query_point(zrc_t *zrc, float point[2], float radius) {
+id_t physics_query_point(zrc_t *zrc, cpVect point, float radius) {
 	cpPointQueryInfo info;
-	cpShape *shape = cpSpacePointQueryNearest(zrc->space, cpv(point[0], point[1]), radius, CP_SHAPE_FILTER_ALL, &info);
+	cpShape *shape = cpSpacePointQueryNearest(zrc->space, point, radius, CP_SHAPE_FILTER_ALL, &info);
 	if (shape) {
 		id_t id = (id_t)cpShapeGetUserData(shape);
 		return id;

@@ -22,7 +22,7 @@ static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	};
 	ZRC_SPAWN(zrc, physics, proj_id, &proj_physics);
 	ZRC_SPAWN(zrc, ttl, proj_id, &(ttl_t) {
-		.ttl = 2
+		.ttl = 0.5f
 	});
 	ZRC_SPAWN(zrc, visual, proj_id, &(visual_t) {
 		.color = color_random(255)
@@ -46,6 +46,10 @@ static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 }
 static void cast_blink(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
 	physics_t *physics = ZRC_GET_WRITE(zrc, physics, caster_id);
+	float dist = cpvdistsq(physics->position, cpv(target->point[0], target->point[1]));
+	if (dist > ability->range*ability->range) {
+		return;
+	}
 	physics->position.x = target->point[0];
 	physics->position.y = target->point[1];
 }
@@ -68,7 +72,7 @@ static void cast_fix_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	};
 	ZRC_SPAWN(zrc, physics, proj_id, &proj_physics);
 	ZRC_SPAWN(zrc, ttl, proj_id, &(ttl_t) {
-		.ttl = 3
+		.ttl = 1
 	});
 	ZRC_SPAWN(zrc, visual, proj_id, &(visual_t) {
 		.color = color_random(255)

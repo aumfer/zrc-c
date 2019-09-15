@@ -7,7 +7,10 @@ extern "C" {
 
 #include <limits.h>
 #include <stdint.h>
+#pragma warning(push)
+#pragma warning(disable:4244)
 #include <chipmunk/chipmunk.h>
+#pragma warning(pop)
 #include <assert.h>
 #include <sokol_time.h>
 #include <moving_average.h>
@@ -40,6 +43,9 @@ typedef enum zrc_component {
 	zrc_caster,
 	zrc_ttl,
 	zrc_contact_damage,
+	zrc_locomotion,
+	zrc_seek,
+	zrc_sense,
 	zrc_component_count
 } zrc_component_t;
 
@@ -95,12 +101,16 @@ typedef struct visual {
 	float angle;
 } visual_t;
 
+typedef struct flight_thrust {
+	float thrust[2];
+	float turn;
+} flight_thrust_t;
+
 typedef struct flight {
 	float max_thrust;
 	float max_turn;
 
-	float thrust[2];
-	float turn;
+	unsigned num_thrusts;
 } flight_t;
 
 typedef struct life {
@@ -203,6 +213,30 @@ typedef struct contact_damage {
 	ttl_t ttl;
 } contact_damage_t;
 
+typedef double(*locomotion_behavior_t)(zrc_t *, id_t, cpVect point);
+
+typedef struct locomotion {
+	unsigned num_locomotion_behavior;
+} locomotion_t;
+
+typedef struct seek_to {
+	cpVect point;
+} seek_to_t;
+
+typedef struct seek {
+	cpVect point;
+	unsigned num_seeks;
+} seek_t;
+
+#define SENSE_MAX_ENTITIES 64
+#define SENSE_MASK_ENTITIES (SENSE_MAX_ENTITIES-1)
+typedef struct sense {
+	float range;
+
+	id_t entities[SENSE_MAX_ENTITIES];
+	unsigned num_entities;
+} sense_t;
+
 typedef struct zrc {
 	// static
 	ability_t ability[ABILITY_COUNT];
@@ -217,6 +251,9 @@ typedef struct zrc {
 	caster_t caster[MAX_FRAMES][MAX_ENTITIES];
 	ttl_t ttl[MAX_FRAMES][MAX_ENTITIES];
 	contact_damage_t contact_damage[MAX_FRAMES][MAX_ENTITIES];
+	locomotion_t locomotion[MAX_FRAMES][MAX_ENTITIES];
+	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
+	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
 	unsigned num_damage[MAX_ENTITIES];
@@ -227,6 +264,12 @@ typedef struct zrc {
 	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][MAX_MESSAGES];
 	unsigned num_cast[MAX_ENTITIES];
 	cast_t cast[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_locomotion_behavior[MAX_ENTITIES];
+	locomotion_behavior_t locomotion_behavior[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_flight_thrust[MAX_ENTITIES];
+	flight_thrust_t flight_thrust[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_seek_to[MAX_ENTITIES];
+	seek_to_t seek_to[MAX_ENTITIES][MAX_MESSAGES];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
@@ -375,8 +418,8 @@ void physics_delete(zrc_t *, id_t, physics_t *);
 void physics_begin(zrc_t *, id_t, physics_t *);
 void physics_update(zrc_t *);
 void physics_end(zrc_t *, id_t, physics_t *);
-id_t physics_query_ray(zrc_t *, float start[2], float end[2], float radius);
-id_t physics_query_point(zrc_t *, float point[2], float radius);
+id_t physics_query_ray(zrc_t *, cpVect start, cpVect end, float radius);
+id_t physics_query_point(zrc_t *, cpVect point, float radius);
 
 void flight_startup(zrc_t *);
 void flight_shutdown(zrc_t *);
@@ -413,6 +456,24 @@ void contact_damage_shutdown(zrc_t *);
 void contact_damage_create(zrc_t *, id_t, contact_damage_t *);
 void contact_damage_delete(zrc_t *, id_t, contact_damage_t *);
 void contact_damage_update(zrc_t *, id_t, contact_damage_t *);
+
+void locomotion_startup(zrc_t *);
+void locomotion_shutdown(zrc_t *);
+void locomotion_create(zrc_t *, id_t, locomotion_t *);
+void locomotion_delete(zrc_t *, id_t, locomotion_t *);
+void locomotion_update(zrc_t *, id_t, locomotion_t *);
+
+void seek_startup(zrc_t *);
+void seek_shutdown(zrc_t *);
+void seek_create(zrc_t *, id_t, seek_t *);
+void seek_delete(zrc_t *, id_t, seek_t *);
+void seek_update(zrc_t *, id_t, seek_t *);
+
+void sense_startup(zrc_t *);
+void sense_shutdown(zrc_t *);
+void sense_create(zrc_t *, id_t, sense_t *);
+void sense_delete(zrc_t *, id_t, sense_t *);
+void sense_update(zrc_t *, id_t, sense_t *);
 
 #ifdef __cplusplus
 }

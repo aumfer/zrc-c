@@ -30,9 +30,9 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	font_print(&draw->font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&draw->font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
 
-	ui_touchstate_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
+	ui_touchpoint_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
 	char ptr[32];
-	sprintf_s(ptr, sizeof(ptr), "point: %.0f %.0f (%d)", pointer.point[0], pointer.point[1], control->target);
+	sprintf_s(ptr, sizeof(ptr), "point: %.0f %.0f (%d)", pointer.x, pointer.y, control->target);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
 
@@ -63,6 +63,13 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 			font_print(&draw->font, hov, (float[2]) { [0] = 10, [1] = 110 }, 0xff333333);
 			font_print(&draw->font, hov, (float[2]) { [0] = 11, [1] = 111 }, 0xffcccccc);
 		}
+	}
+
+	for (int i = 0; i < zrc_component_count; ++i) {
+		char ctime[32];
+		sprintf_s(ctime, sizeof(ctime), "%2d| %2.0fms", i, stm_ms(zrc->times[i]));
+		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 101.0f, [1] = sapp_height() - 20.0f - (20*i) }, 0xff333333);
+		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 100.0f, [1] = sapp_height() - 21.0f - (20*i) }, 0xffcccccc);
 	}
 
 	draw_world_frame(&draw->draw_world, camera);
