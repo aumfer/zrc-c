@@ -1,8 +1,10 @@
 add_library(libzrc
     include/camera.h
     src/camera.c
+    src/caster.c
     include/color.h
     src/color.c
+    src/contact_damage.c
     src/flight.c
     include/guid.h
     src/guid.c

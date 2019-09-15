@@ -17,7 +17,8 @@ typedef enum instance_flags {
 } instance_flags_t;
 
 typedef struct instance {
-	float radius;
+	float size[2];
+	float alive;
 	float angle;
 	float position[2];
 	float speed[2];

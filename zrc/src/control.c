@@ -48,6 +48,12 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 		if (ui_button(ui, CONTROL_BUTTON_BACKWARD)) {
 			flight->thrust[0] -= 1;
 		}
+		if (ui_button(ui, CONTROL_BUTTON_STRAFE_LEFT)) {
+			flight->thrust[1] += 1;
+		}
+		if (ui_button(ui, CONTROL_BUTTON_STRAFE_RIGHT)) {
+			flight->thrust[1] -= 1;
+		}
 		flight->turn = 0;
 		if (ui_button(ui, CONTROL_BUTTON_LEFT)) {
 			flight->turn += 1;
@@ -59,7 +65,16 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 	if (ZRC_HAS(zrc, caster, control->unit)) {
 		caster_t *caster = ZRC_GET_WRITE(zrc, caster, control->unit);
-		int cast_buttons[] = { CONTROL_BUTTON_CAST0, CONTROL_BUTTON_CAST1 };
+		int cast_buttons[] = {
+			CONTROL_BUTTON_CAST0,
+			CONTROL_BUTTON_CAST1,
+			CONTROL_BUTTON_CAST2,
+			CONTROL_BUTTON_CAST3,
+			CONTROL_BUTTON_CAST4,
+			CONTROL_BUTTON_CAST5,
+			CONTROL_BUTTON_CAST6,
+			CONTROL_BUTTON_CAST7,
+		};
 		for (int i = 0; i < CASTER_MAX_ABLITIES; ++i) {
 			caster_ability_t *caster_ability = &caster->abilities[i];
 			const ability_t *ability = &zrc->ability[caster_ability->ability];

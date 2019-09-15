@@ -57,11 +57,12 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 	if (control->target != ID_INVALID) {
 		physics_t *physics = ZRC_GET(zrc, physics, control->target);
-
-		char hov[32];
-		sprintf_s(hov, sizeof(hov), "hov: %.0f %.0f", physics->position.x, physics->position.y);
-		font_print(&draw->font, hov, (float[2]) { [0] = 10, [1] = 110 }, 0xff333333);
-		font_print(&draw->font, hov, (float[2]) { [0] = 11, [1] = 111 }, 0xffcccccc);
+		if (physics) {
+			char hov[32];
+			sprintf_s(hov, sizeof(hov), "hov: %.0f %.0f", physics->position.x, physics->position.y);
+			font_print(&draw->font, hov, (float[2]) { [0] = 10, [1] = 110 }, 0xff333333);
+			font_print(&draw->font, hov, (float[2]) { [0] = 11, [1] = 111 }, 0xffcccccc);
+		}
 	}
 
 	draw_world_frame(&draw->draw_world, camera);

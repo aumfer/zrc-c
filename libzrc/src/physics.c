@@ -1,6 +1,10 @@
 #include <zrc.h>
 #include <stdio.h>
 
+static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
+static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
+static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt);
+
 void physics_startup(zrc_t *zrc) {
 	printf("physics %zu\n", sizeof(zrc->physics));
 
@@ -10,6 +14,8 @@ void physics_startup(zrc_t *zrc) {
 	cpSpaceSetUserData(zrc->space, zrc);
 
 	zrc->collision_handler = cpSpaceAddDefaultCollisionHandler(zrc->space);
+	zrc->collision_handler->beginFunc = physics_collision_begin;
+	zrc->collision_handler->separateFunc = physics_collision_separate;
 }
 void physics_shutdown(zrc_t *zrc) {
 
@@ -22,6 +28,7 @@ void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpFloat moment = 1;
 	physics->body = cpBodyNew(mass, moment);
 	cpBodySetType(physics->body, physics->type);
+	cpBodySetVelocityUpdateFunc(physics->body, physics_velocity_update);
 	// have to call this for static objs
 	physics_begin(zrc, id, physics);
 
@@ -101,4 +108,55 @@ id_t physics_query_point(zrc_t *zrc, float point[2], float radius) {
 		return id;
 	}
 	return ID_INVALID;
+}
+
+static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPointer userData) {
+	cpShape *s1, *s2;
+	cpArbiterGetShapes(arb, &s1, &s2);
+
+	id_t e1 = (id_t)cpShapeGetUserData(s1);
+	id_t e2 = (id_t)cpShapeGetUserData(s2);
+
+	zrc_t *zrc = cpSpaceGetUserData(space);
+	physics_t *physics1 = ZRC_GET(zrc, physics, e1);
+	physics_t *physics2 = ZRC_GET(zrc, physics, e2);
+
+	cpBool respond;
+	if (physics1 && physics2) {
+		respond = physics1->response_mask & physics2->response_mask;
+	} else {
+		respond = cpFalse;
+	}
+
+	return respond;
+}
+static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPointer userData) {
+}
+
+static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt) {
+	id_t id = (id_t)cpBodyGetUserData(body);
+
+	cpBodyUpdateVelocity(body, gravity, damping, dt);
+
+	cpSpace *space = cpBodyGetSpace(body);
+	zrc_t *zrc = cpSpaceGetUserData(space);
+	physics_t *physics = ZRC_GET(zrc, physics, id);
+
+	if (physics) {
+		if (physics->max_speed) {
+			cpVect v = cpBodyGetVelocity(body);
+			v = cpvclamp(v, physics->max_speed);
+			cpBodySetVelocity(body, v);
+		}
+
+		if (physics->max_spin) {
+			cpFloat angular_velocity = cpBodyGetAngularVelocity(body);
+			cpFloat spin = cpfabs(angular_velocity);
+			cpFloat spin_percent = spin / physics->max_spin;
+			if (spin_percent > 1) {
+				angular_velocity *= (1 / spin_percent);
+				cpBodySetAngularVelocity(body, angular_velocity);
+			}
+		}
+	}
 }

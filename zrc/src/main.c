@@ -40,6 +40,7 @@ static int thread(void *_) {
 			.type = rand() > RAND_MAX / 2 ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
 			.collide_flags = ~0,
 			.collide_mask = ~0,
+			.response_mask = ~0,
 			//.radius = 0.5f,
 			.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
 			.position = { .x = randf() * 4096, .y = randf() * 4096 },
@@ -69,8 +70,10 @@ static int thread(void *_) {
 		ZRC_SPAWN(zrc, life, id, &life);
 		caster_t caster = {
 			.abilities = {
-				[0].ability = 1,
-				[1].ability = 2
+				[0].ability = ABILITY_TUR_PROJ_ATTACK,
+				[1].ability = ABILITY_BLINK,
+				[2].ability = ABILITY_FIX_PROJ_ATTACK,
+				[3].ability = ABILITY_TARGET_NUKE,
 			}
 		};
 		ZRC_SPAWN(zrc, caster, id, &caster);

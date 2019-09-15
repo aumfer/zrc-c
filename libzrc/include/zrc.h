@@ -15,7 +15,7 @@ extern "C" {
 #include <color.h>
 
 typedef uint16_t id_t;
-#define ID_INVALID ((uint16_t)-1)
+#define ID_INVALID ((id_t)-1)
 
 #define MAX_ENTITIES 16384
 #define MAX_FRAMES 64
@@ -39,6 +39,7 @@ typedef enum zrc_component {
 	zrc_physics_controller,
 	zrc_caster,
 	zrc_ttl,
+	zrc_contact_damage,
 	zrc_component_count
 } zrc_component_t;
 
@@ -51,6 +52,8 @@ typedef struct physics {
 	cpBitmask collide_flags;
 	cpBitmask collide_mask;
 	cpBitmask response_mask;
+	float max_speed;
+	float max_spin;
 
 	float radius;
 	float angle;
@@ -87,6 +90,9 @@ typedef struct physics_controller_velocity {
 typedef struct visual {
 	uint32_t color;
 	uint32_t flags;
+	float size[2];
+	float position[2];
+	float angle;
 } visual_t;
 
 typedef struct flight {
@@ -130,8 +136,10 @@ typedef void(*ablity_cast_t)(zrc_t *, const ability_t *, id_t, const ability_tar
 
 typedef enum ability_id {
 	ABILITY_NONE,
-	ABILITY_PROJATTACK,
+	ABILITY_TUR_PROJ_ATTACK,
 	ABILITY_BLINK,
+	ABILITY_FIX_PROJ_ATTACK,
+	ABILITY_TARGET_NUKE,
 	ABILITY_COUNT
 } ability_id_t;
 
@@ -180,11 +188,24 @@ typedef struct ttl {
 	float alive;
 } ttl_t;
 
-#define MAX_ABILITIES 1024
+typedef enum contact_damage_flags {
+	CONTACT_DAMAGE_NONE,
+	CONTACT_DAMAGE_HAS_HIT = 1,
+	CONTACT_DAMAGE_ONE_HIT = 2,
+	CONTACT_DAMAGE_DESPAWN_ON_HIT = 4
+} contact_damage_flags_t;
+
+typedef struct contact_damage {
+	damage_t damage;
+	contact_damage_flags_t flags;
+	id_t onhit_id;
+	visual_t visual;
+	ttl_t ttl;
+} contact_damage_t;
 
 typedef struct zrc {
 	// static
-	ability_t ability[MAX_ABILITIES];
+	ability_t ability[ABILITY_COUNT];
 
 	// persistent
 	registry_t registry[MAX_FRAMES][MAX_ENTITIES];
@@ -195,6 +216,7 @@ typedef struct zrc {
 	life_t life[MAX_FRAMES][MAX_ENTITIES];
 	caster_t caster[MAX_FRAMES][MAX_ENTITIES];
 	ttl_t ttl[MAX_FRAMES][MAX_ENTITIES];
+	contact_damage_t contact_damage[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient
 	unsigned num_damage[MAX_ENTITIES];
@@ -385,6 +407,12 @@ void ttl_shutdown(zrc_t *);
 void ttl_create(zrc_t *, id_t, ttl_t *);
 void ttl_delete(zrc_t *, id_t, ttl_t *);
 void ttl_update(zrc_t *, id_t, ttl_t *);
+
+void contact_damage_startup(zrc_t *);
+void contact_damage_shutdown(zrc_t *);
+void contact_damage_create(zrc_t *, id_t, contact_damage_t *);
+void contact_damage_delete(zrc_t *, id_t, contact_damage_t *);
+void contact_damage_update(zrc_t *, id_t, contact_damage_t *);
 
 #ifdef __cplusplus
 }

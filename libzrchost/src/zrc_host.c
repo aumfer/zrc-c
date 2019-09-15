@@ -1,7 +1,7 @@
 #include <zrc_host.h>
 #include <stdio.h>
 
-static void cast_projattack(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
 
 	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
@@ -13,6 +13,9 @@ static void cast_projattack(zrc_t *zrc, const ability_t *ability, id_t caster_id
 	cpVect target_point = cpv(target->point[0], target->point[1]);
 	cpVect dir = cpvnormalize(cpvsub(target_point, physics->position));
 	physics_t proj_physics = {
+		.collide_flags = ~0,
+		.collide_mask = ~0,
+		.response_mask = ~0,
 		.radius = 0.1f,
 		.position = cpvadd(physics->position, cpvmult(front, physics->radius)),
 		.velocity = cpvmult(dir, proj_speed)
@@ -24,11 +27,94 @@ static void cast_projattack(zrc_t *zrc, const ability_t *ability, id_t caster_id
 	ZRC_SPAWN(zrc, visual, proj_id, &(visual_t) {
 		.color = color_random(255)
 	});
+	contact_damage_t contact_damage = {
+		.damage = {
+			.from = caster_id,
+			.health = 10
+		},
+		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
+		.onhit_id = zrc_host_put(zrc_host, guid_create()),
+		.visual = {
+			.color = color_random(255),
+			.size = { 10, 10 }
+		},
+		.ttl = {
+			.ttl = 0.5f
+		}
+	};
+	ZRC_SPAWN(zrc, contact_damage, proj_id, &contact_damage);
 }
 static void cast_blink(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
 	physics_t *physics = ZRC_GET_WRITE(zrc, physics, caster_id);
 	physics->position.x = target->point[0];
 	physics->position.y = target->point[1];
+}
+static void cast_fix_proj_attack(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+	zrc_host_t *zrc_host = zrc->user;
+
+	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
+
+	id_t proj_id = zrc_host_put(zrc_host, guid_create());
+	float proj_speed = 100;
+
+	cpVect front = cpvforangle(physics->angle);
+	physics_t proj_physics = {
+		.collide_flags = ~0,
+		.collide_mask = ~0,
+		.response_mask = ~0,
+		.radius = 0.25f,
+		.position = cpvadd(physics->position, cpvmult(front, physics->radius)),
+		.velocity = cpvmult(front, proj_speed)
+	};
+	ZRC_SPAWN(zrc, physics, proj_id, &proj_physics);
+	ZRC_SPAWN(zrc, ttl, proj_id, &(ttl_t) {
+		.ttl = 3
+	});
+	ZRC_SPAWN(zrc, visual, proj_id, &(visual_t) {
+		.color = color_random(255)
+	});
+	contact_damage_t contact_damage = {
+		.damage = {
+			.from = caster_id,
+			.health = 20
+		},
+		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
+		.onhit_id = zrc_host_put(zrc_host, guid_create()),
+		.visual = {
+			.color = color_random(255),
+			.size = { 10, 10 }
+		},
+		.ttl = {
+			.ttl = 0.5f
+		}
+	};
+	ZRC_SPAWN(zrc, contact_damage, proj_id, &contact_damage);
+}
+static void cast_target_nuke(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+	zrc_host_t *zrc_host = zrc->user;
+
+	damage_t damage = {
+		.from = caster_id,
+		.health = 30
+	};
+	ZRC_SEND(zrc, damage, target->unit, &damage);
+
+	physics_t *target_physics = ZRC_GET(zrc, physics, target->unit);
+	if (target_physics) {
+		id_t hit_id = zrc_host_put(zrc_host, guid_create());
+		ZRC_SPAWN(zrc, ttl, hit_id, &(ttl_t) {
+			.ttl = 0.5f
+		});
+		ZRC_SPAWN(zrc, visual, hit_id, &(visual_t) {
+			.color = color_random(255)
+		});
+		visual_t visual = {
+			.color = color_random(255),
+			.size = { 10, 10 },
+			.position = { target_physics->position.x, target_physics->position.y }
+		};
+		ZRC_SPAWN(zrc, visual, hit_id, &visual);
+	}
 }
 
 void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
@@ -36,8 +122,10 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 
 	kh_resize(zhash, &zrc_host->entities, MAX_ENTITIES);
 
-	zrc->ability[ABILITY_PROJATTACK].cast = cast_projattack;
+	zrc->ability[ABILITY_TUR_PROJ_ATTACK].cast = cast_tur_proj_attack;
 	zrc->ability[ABILITY_BLINK].cast = cast_blink;
+	zrc->ability[ABILITY_FIX_PROJ_ATTACK].cast = cast_fix_proj_attack;
+	zrc->ability[ABILITY_TARGET_NUKE].cast = cast_target_nuke;
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
 }

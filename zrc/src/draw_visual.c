@@ -9,7 +9,7 @@ typedef struct vertex {
 
 typedef uint32_t index_t;
 
-static_assert(sizeof(instance_t) % 16 == 0, "instance size");
+//static_assert(sizeof(instance_t) % 16 == 0, "instance size");
 
 static float vertices[] = {
 	-1, -1,
@@ -43,7 +43,8 @@ uniform mat4 view_projection;
 uniform vec3 offset;
 
 in vec2 texcoord;
-in float radius;
+in vec2 size;
+in float alive;
 in vec2 position;
 in float angle;
 in vec4 color;
@@ -52,7 +53,8 @@ in vec3 life;
 in vec4 target;
 
 out vec2 f_texcoord;
-out flat float f_radius;
+out flat vec2 f_size;
+out flat float f_alive;
 out flat vec2 f_position;
 out flat float f_angle;
 out flat vec4 f_color;
@@ -61,12 +63,13 @@ out flat vec3 f_life;
 out flat vec4 f_target;
 
 void main() {
-	mat4 transform = mat4_translate(position.x + offset.x, position.y + offset.y, offset.z) /** mat4_rotate(f_angle, vec3(0, 0, 1))*/ * mat4_scale(radius * 2, radius * 2, 0);
+	mat4 transform = mat4_translate(position.x + offset.x, position.y + offset.y, offset.z) * mat4_scale(size.x, size.y, 0);
 	vec4 p = transform * vec4(texcoord, 0, 1);
 	f_texcoord = p.xy;
 	gl_Position = view_projection * p;
 
-	f_radius = radius;
+	f_size = size;
+	f_alive = alive;
 	f_position = position;
 	f_angle = angle;
 	f_color = color;
@@ -82,7 +85,8 @@ GLSL(
 uniform vec3 camera_position;
 
 in vec2 f_texcoord;
-in flat float f_radius;
+in flat vec2 f_size;
+in flat float f_alive;
 in flat vec2 f_position;
 in flat float f_angle;
 in flat vec4 f_color;
@@ -93,6 +97,7 @@ in flat vec4 f_target;
 out vec4 p_color;
 
 vec2 p;
+float f_radius;
 
 vec4 life(vec4 col) {
 	float w = 0.25;
@@ -108,6 +113,8 @@ vec4 life(vec4 col) {
 }
 
 void main() {
+	f_radius = (f_size.x + f_size.y) / 4;
+
 	p = rotateZ(f_position - f_texcoord, -f_angle - M_PI / 2);
 	vec2 target = f_position - f_target.xy;
 	float atarget = atan(target.y, target.x);
@@ -165,46 +172,50 @@ void draw_visual_create(draw_visual_t *draw_visual) {
 				[0].format = SG_VERTEXFORMAT_FLOAT2,
 				[0].offset = offsetof(vertex_t, texcoord),
 				[1].buffer_index = 1,
-				[1].format = SG_VERTEXFORMAT_FLOAT,
-				[1].offset = offsetof(instance_t, radius),
+				[1].format = SG_VERTEXFORMAT_FLOAT2,
+				[1].offset = offsetof(instance_t, size),
 				[2].buffer_index = 1,
 				[2].format = SG_VERTEXFORMAT_FLOAT,
-				[2].offset = offsetof(instance_t, angle),
+				[2].offset = offsetof(instance_t, alive),
 				[3].buffer_index = 1,
-				[3].format = SG_VERTEXFORMAT_FLOAT2,
-				[3].offset = offsetof(instance_t, position),
+				[3].format = SG_VERTEXFORMAT_FLOAT,
+				[3].offset = offsetof(instance_t, angle),
 				[4].buffer_index = 1,
 				[4].format = SG_VERTEXFORMAT_FLOAT2,
-				[4].offset = offsetof(instance_t, speed),
+				[4].offset = offsetof(instance_t, position),
 				[5].buffer_index = 1,
-				[5].format = SG_VERTEXFORMAT_FLOAT,
-				[5].offset = offsetof(instance_t, spin),
+				[5].format = SG_VERTEXFORMAT_FLOAT2,
+				[5].offset = offsetof(instance_t, speed),
 				[6].buffer_index = 1,
-				[6].format = SG_VERTEXFORMAT_UBYTE4N,
-				[6].offset = offsetof(instance_t, color),
+				[6].format = SG_VERTEXFORMAT_FLOAT,
+				[6].offset = offsetof(instance_t, spin),
 				[7].buffer_index = 1,
-				[7].format = SG_VERTEXFORMAT_FLOAT,
-				[7].offset = offsetof(instance_t, flags),
+				[7].format = SG_VERTEXFORMAT_UBYTE4N,
+				[7].offset = offsetof(instance_t, color),
 				[8].buffer_index = 1,
-				[8].format = SG_VERTEXFORMAT_FLOAT3,
-				[8].offset = offsetof(instance_t, life),
+				[8].format = SG_VERTEXFORMAT_FLOAT,
+				[8].offset = offsetof(instance_t, flags),
 				[9].buffer_index = 1,
-				[9].format = SG_VERTEXFORMAT_FLOAT4,
-				[9].offset = offsetof(instance_t, target),
+				[9].format = SG_VERTEXFORMAT_FLOAT3,
+				[9].offset = offsetof(instance_t, life),
+				[10].buffer_index = 1,
+				[10].format = SG_VERTEXFORMAT_FLOAT4,
+				[10].offset = offsetof(instance_t, target),
 			}
 		},
 		.shader = sg_make_shader(&(sg_shader_desc) {
 			.attrs = {
 				[0].name = "texcoord",
-				[1].name = "radius",
-				[2].name = "angle",
-				[3].name = "position",
-				[4].name = "speed",
-				[5].name = "spin",
-				[6].name = "color",
-				[7].name = "flags",
-				[8].name = "life",
-				[9].name = "target"
+				[1].name = "size",
+				[2].name = "alive",
+				[3].name = "angle",
+				[4].name = "position",
+				[5].name = "speed",
+				[6].name = "spin",
+				[7].name = "color",
+				[8].name = "flags",
+				[9].name = "life",
+				[10].name = "target"
 			},
 			.vs.source = vertex_source,
 			.vs.uniform_blocks = {
@@ -264,47 +275,57 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		if (ZRC_HAS(zrc, visual, i) && ZRC_HAS(zrc, physics, i)) {
-			assert(instance_count < INSTANCE_BUFFER_MAX);
-			visual_t *visual = ZRC_GET_READ(zrc, visual, i);
-			physics_t *physics = ZRC_GET_READ(zrc, physics, i);
-
+		visual_t *visual = ZRC_GET(zrc, visual, i);
+		if (!visual) {
+			continue;
+		}
+		instance_t instance = {
+			.color = visual->color,
+			.flags = visual->flags
+		};
+		physics_t *physics = ZRC_GET(zrc, physics, i);
+		if (physics) {
 			cpVect position = cpvadd(physics->position, cpvmult(physics->velocity, extra));
 
 			float angle = physics->angle + physics->angular_velocity * extra;
 
-			instance_t instance = {
-				.radius = physics->radius,
-				.angle = angle,
-				.position = { [0] = position.x, [1] = position.y },
-				.speed = { [0] = physics->velocity.x, [1] = physics->velocity.y },
-				.spin = physics->angular_velocity,
-				.color = visual->color,
-				.flags = visual->flags
-			};
-			if (control->target == i) {
-				instance.flags |= INSTANCE_HOVER;
-			}
-			if (control->unit == i) {
-				instance.flags |= INSTANCE_SELECT;
-			}
-			life_t *life = ZRC_GET(zrc, life, i);
-			if (life) {
-				instance.life[0] = life->health / life->max_health;
-				instance.life[1] = life->mana / life->max_mana;
-				instance.life[2] = life->rage / life->max_rage;
-			}
-			caster_t *caster = ZRC_GET(zrc, caster, i);
-			if (caster) {
-				instance.target[0] = caster->abilities[0].target.point[0];
-				instance.target[1] = caster->abilities[0].target.point[1];
-				//instance.target[2] = caster->abilities[1].target.unit.position[0]
-				//instance.target[3] = caster->abilities[1].target.unit.position[1]
-			}
-			//sg_append_buffer(draw_visual->instance_buffer, &instance, sizeof(instance));
-			draw_visual->instances[instance_count] = instance;
-			++instance_count;
+			instance.size[0] = physics->radius * 2;
+			instance.size[1] = physics->radius * 2;
+			instance.angle = angle;
+			instance.position[0] = position.x;
+			instance.position[1] = position.y;
+			instance.speed[0] = physics->velocity.x;
+			instance.speed[1] = physics->velocity.y;
+			instance.spin = physics->angular_velocity;
+		} else {
+			instance.size[0] = visual->size[0];
+			instance.size[1] = visual->size[1];
+			instance.angle = visual->angle;
+			instance.position[0] = visual->position[0];
+			instance.position[1] = visual->position[1];
 		}
+		if (control->target == i) {
+			instance.flags |= INSTANCE_HOVER;
+		}
+		if (control->unit == i) {
+			instance.flags |= INSTANCE_SELECT;
+		}
+		life_t *life = ZRC_GET(zrc, life, i);
+		if (life) {
+			instance.life[0] = life->health / life->max_health;
+			instance.life[1] = life->mana / life->max_mana;
+			instance.life[2] = life->rage / life->max_rage;
+		}
+		caster_t *caster = ZRC_GET(zrc, caster, i);
+		if (caster) {
+			instance.target[0] = caster->abilities[0].target.point[0];
+			instance.target[1] = caster->abilities[0].target.point[1];
+			//instance.target[2] = caster->abilities[1].target.unit.position[0]
+			//instance.target[3] = caster->abilities[1].target.unit.position[1]
+		}
+		//sg_append_buffer(draw_visual->instance_buffer, &instance, sizeof(instance));
+		draw_visual->instances[instance_count] = instance;
+		++instance_count;
 	}
 
 	sg_update_buffer(draw_visual->instance_buffer, draw_visual->instances, instance_count * sizeof(instance_t));

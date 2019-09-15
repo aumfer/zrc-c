@@ -17,7 +17,7 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	assert(physics);
 
 	cpVect thrust = cpv(flight->thrust[0], flight->thrust[1]);
-	thrust.x = max(0, thrust.x);
+	//thrust.x = max(0, thrust.x);
 	thrust = cpvclamp(thrust, 1);
 	thrust = cpvrotate(thrust, cpvforangle(physics->angle));
 	cpVect force = cpvmult(thrust, flight->max_thrust);
