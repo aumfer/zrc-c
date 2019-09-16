@@ -1,4 +1,5 @@
 add_library(libzrc
+    src/ai.c
     include/camera.h
     src/camera.c
     src/caster.c

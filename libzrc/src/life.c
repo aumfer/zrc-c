@@ -34,6 +34,14 @@ void life_update(zrc_t *zrc, id_t id, life_t *life) {
 			puts("ow");
 			selfharm.health += outrage;
 		}
+
+		if (taken > 0) {
+			damage_dealt_t damage_dealt = { 0 };
+			damage_dealt.to = id;
+			damage_dealt.ability = damage->ability;
+			damage_dealt.health = taken;
+			ZRC_SEND(zrc, damage_dealt, damage->from, &damage_dealt);
+		}
 	});
 	if (selfharm.health > 0) {
 		ZRC_SEND(zrc, damage, id, &selfharm);

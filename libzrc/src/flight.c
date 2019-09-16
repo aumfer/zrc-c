@@ -37,24 +37,29 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 		++num_thrusts;
 	});
 
-	if (num_thrusts) {
-		cpVect force = cpvmult(sum_force, 1.0f / num_thrusts);
-		float torque = sum_torque / num_thrusts;
-		if (ZRC_HAS(zrc, physics_controller, id)) {
+	cpVect force = cpvmult(sum_force, 1.0f / max(1, num_thrusts));
+	float torque = sum_torque / max(1, num_thrusts);
+	if (ZRC_HAS(zrc, physics_controller, id)) {
+		if (num_thrusts) {
 			physics_controller_velocity_t physics_controller_velocity = {
 				.velocity = force,
 				.angular_velocity = torque
 			};
 			ZRC_SEND(zrc, physics_controller_velocity, id, &physics_controller_velocity);
-		} else {
-			float damp = 2;
+		}
+	} else {
+		float damp = 2;
 
-			cpVect force_damp = cpvmult(physics->velocity, -damp);
-			float torque_damp = (float)(physics->angular_velocity * -damp);
+		cpVect force_damp = cpvmult(physics->velocity, -damp);
+		float torque_damp = (float)(physics->angular_velocity * -damp);
 
+		cpVect apply_force = cpvadd(force, force_damp);
+		float apply_torque = torque + torque_damp;
+
+		if (!cpveql(apply_force, cpvzero) || apply_torque != 0) {
 			physics_force_t physics_force = {
-				.force = cpvadd(force, force_damp),
-				.torque = torque + torque_damp
+				.force = apply_force,
+				.torque = apply_torque
 			};
 			ZRC_SEND(zrc, physics_force, id, &physics_force);
 		}

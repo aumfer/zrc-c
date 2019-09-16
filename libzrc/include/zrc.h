@@ -30,6 +30,7 @@ typedef uint16_t id_t;
 #define MASK_MESSAGES (MAX_MESSAGES-1)
 
 #define TICK_RATE (1.0f/60.0f)
+#define MAP_SCALE 16
 
 #define randf() ((float)rand() / RAND_MAX)
 
@@ -49,6 +50,7 @@ typedef enum zrc_component {
 	zrc_seek,
 	zrc_sense,
 	zrc_relate,
+	zrc_ai,
 	zrc_component_count
 } zrc_component_t;
 
@@ -124,11 +126,6 @@ typedef struct life {
 	unsigned damage_index;
 } life_t;
 
-typedef struct damage {
-	id_t from;
-	float health;
-} damage_t;
-
 typedef enum ability_target_flags {
 	ABILITY_TARGET_NONE = 0,
 	ABILITY_TARGET_UNIT = 1,
@@ -143,10 +140,6 @@ typedef union ability_target {
 	float point[2];
 } ability_target_t;
 
-typedef struct ability ability_t;
-
-typedef void(*ablity_cast_t)(zrc_t *, const ability_t *, id_t, const ability_target_t *);
-
 typedef enum ability_id {
 	ABILITY_INVALID = -1,
 	ABILITY_NONE,
@@ -157,6 +150,10 @@ typedef enum ability_id {
 	ABILITY_COUNT
 } ability_id_t;
 
+typedef struct ability ability_t;
+
+typedef void(*ablity_cast_t)(zrc_t *, ability_id_t, id_t, const ability_target_t *);
+
 typedef struct ability {
 	ability_target_flags_t target_flags;
 	ablity_cast_t cast;
@@ -166,6 +163,18 @@ typedef struct ability {
 	float mana;
 	float rage;
 } ability_t;
+
+typedef struct damage {
+	id_t from;
+	ability_id_t ability;
+	float health;
+} damage_t;
+
+typedef struct damage_dealt {
+	id_t to;
+	ability_id_t ability;
+	float health;
+} damage_dealt_t;
 
 typedef enum cast_flags {
 	CAST_NONE,
@@ -191,7 +200,7 @@ typedef struct cast {
 	cast_flags_t cast_flags;
 } cast_t;
 
-#define CASTER_MAX_ABLITIES 8
+#define CASTER_MAX_ABLITIES ABILITY_COUNT
 typedef struct caster {
 	caster_ability_t abilities[CASTER_MAX_ABLITIES];
 
@@ -262,6 +271,15 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
+#define AI_OBSERVATION_LENGTH 5696
+#define AI_ACTION_LENGTH 13
+
+typedef struct ai {
+	float reward;
+
+	unsigned damage_dealt_index;
+} ai_t;
+
 #define MAX_RELATE_CHANGES MAX_ENTITIES
 
 typedef struct zrc {
@@ -282,8 +300,9 @@ typedef struct zrc {
 	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
 	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
 	relate_t relate[MAX_FRAMES][MAX_ENTITIES];
+	ai_t ai[MAX_FRAMES][MAX_ENTITIES];
 
-	// transient
+	// transient // todo volatile?
 	unsigned num_damage[MAX_ENTITIES];
 	damage_t damage[MAX_ENTITIES][MAX_MESSAGES];
 	unsigned num_physics_force[MAX_ENTITIES];
@@ -298,6 +317,8 @@ typedef struct zrc {
 	flight_thrust_t flight_thrust[MAX_ENTITIES][MAX_MESSAGES];
 	unsigned num_seek_to[MAX_ENTITIES];
 	seek_to_t seek_to[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_damage_dealt[MAX_ENTITIES];
+	damage_dealt_t damage_dealt[MAX_ENTITIES][MAX_MESSAGES];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
@@ -323,25 +344,25 @@ registry_t zrc_components(int count, ...);
 #define ZRC_WRITE_FRAME(zrc) ZRC_PAST_FRAME(zrc, 0)
 #define ZRC_NEXT_FRAME(zrc) ZRC_PAST_FRAME(zrc, -1)
 
-#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
-#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][id])
-#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][id])
-#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][id])
-#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][id])
-#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][id])
+#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][id&MASK_ENTITIES])
+#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][id&MASK_ENTITIES])
+#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][id&MASK_ENTITIES])
+#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][id&MASK_ENTITIES])
+#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][id&MASK_ENTITIES])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
-	for (unsigned i = (*(start)); i < (zrc)->num_##name##[id]; ++i) { \
-		(var) = &(zrc)->##name##[id][i&MASK_MESSAGES]; \
+	for (unsigned i = (*(start)); i < (zrc)->num_##name##[id&MASK_ENTITIES]; ++i) { \
+		(var) = &(zrc)->##name##[id&MASK_ENTITIES][i&MASK_MESSAGES]; \
 		code; \
 		++(*(start)); \
 	}
 
-#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[id][(zrc)->num_##name##[id]++&MASK_MESSAGES] = *(val)
+#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[id&MASK_ENTITIES][(zrc)->num_##name##[id&MASK_ENTITIES]++&MASK_MESSAGES] = *(val)
 
 // components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \
@@ -523,6 +544,15 @@ void relate_startup(zrc_t *);
 void relate_shutdown(zrc_t *);
 void relate_update(zrc_t *);
 float relate_to_query(zrc_t *, id_t, id_t);
+
+void ai_startup(zrc_t *);
+void ai_shutdown(zrc_t *);
+void ai_create(zrc_t *, id_t, ai_t *);
+void ai_delete(zrc_t *, id_t, ai_t *);
+void ai_update(zrc_t *, id_t, ai_t *);
+void ai_observe(const zrc_t *, id_t id, float *numpyarray);
+void ai_act(zrc_t *, id_t id, float *numpyarray);
+
 
 #ifdef __cplusplus
 }

@@ -1,9 +1,10 @@
 #include <zrc_host.h>
 #include <stdio.h>
 
-static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+static void cast_tur_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
 
+	ability_t *ability = &zrc->ability[ability_id];
 	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
 
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
@@ -30,6 +31,7 @@ static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	contact_damage_t contact_damage = {
 		.damage = {
 			.from = caster_id,
+			.ability = ability_id,
 			.health = 10
 		},
 		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
@@ -44,7 +46,8 @@ static void cast_tur_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	};
 	ZRC_SPAWN(zrc, contact_damage, proj_id, &contact_damage);
 }
-static void cast_blink(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+static void cast_blink(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
+	ability_t *ability = &zrc->ability[ability_id];
 	physics_t *physics = ZRC_GET_WRITE(zrc, physics, caster_id);
 	float dist = cpvdistsq(physics->position, cpv(target->point[0], target->point[1]));
 	if (dist > ability->range*ability->range) {
@@ -53,9 +56,10 @@ static void cast_blink(zrc_t *zrc, const ability_t *ability, id_t caster_id, con
 	physics->position.x = target->point[0];
 	physics->position.y = target->point[1];
 }
-static void cast_fix_proj_attack(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
 
+	ability_t *ability = &zrc->ability[ability_id];
 	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
 
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
@@ -80,7 +84,8 @@ static void cast_fix_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	contact_damage_t contact_damage = {
 		.damage = {
 			.from = caster_id,
-			.health = 20
+			.ability = ability_id,
+			.health = 30
 		},
 		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
 		.onhit_id = zrc_host_put(zrc_host, guid_create()),
@@ -94,12 +99,14 @@ static void cast_fix_proj_attack(zrc_t *zrc, const ability_t *ability, id_t cast
 	};
 	ZRC_SPAWN(zrc, contact_damage, proj_id, &contact_damage);
 }
-static void cast_target_nuke(zrc_t *zrc, const ability_t *ability, id_t caster_id, const ability_target_t *target) {
+static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
+
+	ability_t *ability = &zrc->ability[ability_id];
 
 	damage_t damage = {
 		.from = caster_id,
-		.health = 30
+		.health = 20
 	};
 	ZRC_SEND(zrc, damage, target->unit, &damage);
 
@@ -292,6 +299,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 				.to = id,
 				.amount = 1
 		};
+
+		ZRC_SPAWN(zrc, ai, id, &(ai_t){0});
 	}
 }
 void demo_world_delete(demo_world_t *demo_world) {

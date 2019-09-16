@@ -22,7 +22,7 @@ static camera_t camera;
 static ui_t ui;
 static control_t control;
 static thrd_t thrd;
-static timer_t timer;
+static timer_t frame_timer;
 
 static zrc_host_t zrc_host;
 
@@ -32,9 +32,12 @@ static int thread(void *_) {
 
 	control.unit = zrc_host.demo_world.player;
 
+	// todo update_timer, accumulator, call zrc_update, remove zrc_tick
+
 	for (;;) {
 		zrc_tick(zrc);
 		zrc_host_tick(&zrc_host, zrc);
+		
 
 		thrd_yield();
 	}
@@ -54,8 +57,8 @@ void init(void) {
 }
 
 void frame(void) {
-	timer_update(&timer);
-	float dt = (float)stm_sec(timer.dt);
+	timer_update(&frame_timer);
+	float dt = (float)stm_sec(frame_timer.dt);
 
 	ui_frame(&ui);
 	control_frame(&control, &ui, &camera, zrc);

@@ -105,6 +105,9 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 	if (!locomotion) {
 		return;
 	}
+	if (!locomotion->num_behaviors) {
+		return;
+	}
 	float viewport[4] = { 0, 0, DRAW_LOCOMOTION_SIZE, DRAW_LOCOMOTION_SIZE };
 	double minp = FLT_MAX;
 	double maxp = -FLT_MAX;

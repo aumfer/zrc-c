@@ -34,39 +34,41 @@ void zrc_startup(zrc_t *zrc) {
 	seek_startup(zrc);
 	sense_startup(zrc);
 	relate_startup(zrc);
+	ai_startup(zrc);
 
 	zrc->ability[ABILITY_TUR_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 250,
 		.cooldown = 2.0f / 3.0f / 2.0f,
 		.channel = 1.0f / 3.0f / 2.0f,
-		.mana = 1
+		.mana = 10
 	};
 	zrc->ability[ABILITY_BLINK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 250,
 		.cooldown = 7,
 		.channel = 3,
-		.mana = 10
+		.mana = 40
 	};
 	zrc->ability[ABILITY_FIX_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 250,
 		.cooldown = 2.0f / 3.0f,
 		.channel = 1.0f / 3.0f,
-		.mana = 5
+		.mana = 20
 	};
 	zrc->ability[ABILITY_TARGET_NUKE] = (ability_t) {
 		.target_flags = ABILITY_TARGET_UNIT,
 		.range = 250,
 		.cooldown = 3.0f,
 		.channel = 2.0f,
-		.mana = 25
+		.mana = 30
 	};
 
 	timer_create(&zrc->timer);
 }
 void zrc_shutdown(zrc_t *zrc) {
+	ai_shutdown(zrc);
 	relate_shutdown(zrc);
 	sense_shutdown(zrc);
 	seek_shutdown(zrc);
@@ -119,6 +121,7 @@ void zrc_update(zrc_t *zrc) {
 	ZRC_UPDATE1(zrc, seek);
 	ZRC_UPDATE1(zrc, sense);
 	ZRC_UPDATE0(zrc, relate);
+	ZRC_UPDATE1(zrc, ai);
 
 	uint64_t update_ticks = 0;
 	for (int i = 0; i < zrc_component_count; ++i) {

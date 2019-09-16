@@ -59,11 +59,16 @@ void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
 
 	cpVect force = cpvzero;
 	float torque = 0;
+	int num_forces = 0;
 	physics_force_t *physics_force;
 	ZRC_RECEIVE(zrc, physics_force, id, &physics->force_index, physics_force, {
 		force = cpvadd(force, physics_force->force);
 		torque += physics_force->torque;
+		++num_forces;
 	});
+	if (num_forces > 1) {
+		puts("hi");
+	}
 	cpBodySetForce(physics->body, force);
 	cpBodySetTorque(physics->body, torque);
 }

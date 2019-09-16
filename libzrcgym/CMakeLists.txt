@@ -1,6 +1,6 @@
 add_library(libzrcgym SHARED
-    include/ai.h
-    src/ai.c
+    include/env.h
+    src/env.c
     include/gym.h
     src/gym.c
 )

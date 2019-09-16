@@ -91,9 +91,11 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 		}
 	}
 
-	flight_thrust_t flight_thrust = {
-		.thrust = { THRUSTS[best_thrust], 0 },
-		.turn = TURNS[best_turn]
-	};
-	ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
+	if (THRUSTS[best_thrust] || TURNS[best_turn]) {
+		flight_thrust_t flight_thrust = {
+			.thrust = { THRUSTS[best_thrust], 0 },
+			.turn = TURNS[best_turn]
+		};
+		ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
+	}
 }
