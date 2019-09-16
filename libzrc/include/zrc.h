@@ -148,6 +148,7 @@ typedef struct ability ability_t;
 typedef void(*ablity_cast_t)(zrc_t *, const ability_t *, id_t, const ability_target_t *);
 
 typedef enum ability_id {
+	ABILITY_INVALID = -1,
 	ABILITY_NONE,
 	ABILITY_TUR_PROJ_ATTACK,
 	ABILITY_BLINK,
@@ -182,6 +183,7 @@ typedef struct caster_ability {
 } caster_ability_t;
 
 typedef uint8_t caster_ability_id_t;
+#define CASTER_ABILITY_INVALID ((caster_ability_id_t)-1)
 
 typedef struct cast {
 	caster_ability_id_t caster_ability;
@@ -254,11 +256,11 @@ typedef struct relate {
 	int num_relates;
 } relate_t;
 
-typedef struct relate_change {
+typedef struct relationship {
 	id_t from;
 	id_t to;
 	float amount;
-} relate_change_t;
+} relationship_t;
 
 #define MAX_RELATE_CHANGES MAX_ENTITIES
 
@@ -309,27 +311,27 @@ typedef struct zrc {
 	cpCollisionHandler *collision_handler;
 
 	int num_relate_changes;
-	relate_change_t relate_change[MAX_RELATE_CHANGES];
+	relationship_t relate_change[MAX_RELATE_CHANGES];
 	relate_t relate_query[MAX_ENTITIES];
 } zrc_t;
 
 registry_t zrc_components(int count, ...);
 
-#define ZRC_PAST_FRAME(zrc, name, n) (((zrc)->frame - (n)) & MASK_FRAMES)
-#define ZRC_PREV_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 2)
-#define ZRC_READ_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 1)
-#define ZRC_WRITE_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, 0)
-#define ZRC_NEXT_FRAME(zrc, name) ZRC_PAST_FRAME(zrc, name, -1)
+#define ZRC_PAST_FRAME(zrc, n) (((zrc)->frame - (n)) & MASK_FRAMES)
+#define ZRC_PREV_FRAME(zrc) ZRC_PAST_FRAME(zrc, 2)
+#define ZRC_READ_FRAME(zrc) ZRC_PAST_FRAME(zrc, 1)
+#define ZRC_WRITE_FRAME(zrc) ZRC_PAST_FRAME(zrc, 0)
+#define ZRC_NEXT_FRAME(zrc) ZRC_PAST_FRAME(zrc, -1)
 
-#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, name, n)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc, name)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][id] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
-#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, name, (n))][id])
-#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc, name)][id])
-#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc, name)][id])
-#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc, name)][id])
-#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc, name)][id])
+#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][id])
+#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][id])
+#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][id])
+#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][id])
+#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][id])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
@@ -443,6 +445,7 @@ void zrc_##name##_update(zrc_t *zrc, id_t id, ##name##_t *##name##) { \
 void zrc_startup(zrc_t *);
 void zrc_shutdown(zrc_t *);
 void zrc_tick(zrc_t *);
+void zrc_update(zrc_t *);
 
 void registry_startup(zrc_t *);
 void registry_shutdown(zrc_t *);

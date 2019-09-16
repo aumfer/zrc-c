@@ -1,6 +1,8 @@
 #include <zrc.h>
 #include <stdio.h>
 
+static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void *data);
+
 void contact_damage_startup(zrc_t *zrc) {
 	printf("contact_damage %zu\n", sizeof(zrc->contact_damage));
 }
@@ -13,6 +15,12 @@ void contact_damage_create(zrc_t *zrc, id_t id, contact_damage_t *contact_damage
 void contact_damage_delete(zrc_t *zrc, id_t id, contact_damage_t *contact_damage) {
 
 }
+void contact_damage_update(zrc_t *zrc, id_t id, contact_damage_t *contact_damage) {
+	physics_t *physics = ZRC_GET(zrc, physics, id);
+	assert(physics);
+	cpBodyEachArbiter(physics->body, contact_damage_update_arbiter, contact_damage);
+}
+
 static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void *data) {
 	id_t id = (id_t)cpBodyGetUserData(body);
 	contact_damage_t *contact_damage = data;
@@ -48,9 +56,4 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 	}
 
 	contact_damage->flags |= CONTACT_DAMAGE_HAS_HIT;
-}
-void contact_damage_update(zrc_t *zrc, id_t id, contact_damage_t *contact_damage) {
-	physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(physics);
-	cpBodyEachArbiter(physics->body, contact_damage_update_arbiter, contact_damage);
 }

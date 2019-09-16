@@ -15,8 +15,11 @@ add_subdirectory(chipmunk)
 add_subdirectory(handmade-math)
 add_subdirectory(klib)
 add_subdirectory(libzrc)
+add_subdirectory(libzrcgym)
 add_subdirectory(libzrchost)
 add_subdirectory(par)
 add_subdirectory(sokol)
 add_subdirectory(tinycthread)
 add_subdirectory(zrc)
+
+#cmake .. -A x64 -T host=x64

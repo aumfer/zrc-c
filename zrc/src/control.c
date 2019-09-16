@@ -22,14 +22,18 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	//hmm_vec4 screen = HMM_Vec4(mx, -my, 1, 1);
 	//hmm_vec4 world = HMM_MultiplyMat4ByVec4(camera->inv_view_projection, screen);
 
-	control->target = physics_query_ray(zrc, cpv(pick_start.X, pick_start.Y), cpv(pick_end.X, pick_end.Y), 16);
-
-	
 	hmm_vec3 ro = pick_start;
 	//ro = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom);
 	hmm_vec3 rd = HMM_NormalizeVec3(HMM_SubtractVec3(pick_end, pick_start));
 	float worldt = isect_plane(ro, rd, HMM_Vec4(0, 0, 1, 0));
 	hmm_vec3 worldp = HMM_AddVec3(ro, HMM_MultiplyVec3f(rd, worldt));
+
+	//pick_start = HMM_Vec3(camera->position[0], camera->position[1], camera->zoom);
+	//id_t target = physics_query_ray(zrc, cpv(pick_start.X, pick_start.Y), cpv(pick_end.X, pick_end.Y), 1);
+	id_t target = physics_query_point(zrc, cpv(worldp.X, worldp.Y), 2);
+	if (target != ID_INVALID && target != control->unit) {
+		control->target = target;
+	}
 
 	control->ground[0] = worldp.X;
 	control->ground[1] = worldp.Y;
