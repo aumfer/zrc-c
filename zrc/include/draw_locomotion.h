@@ -13,6 +13,9 @@ typedef struct draw_locomotion {
 	float accumulator;
 	float potential[DRAW_LOCOMOTION_SIZE][DRAW_LOCOMOTION_SIZE];
 	uint8_t scaled_potential[DRAW_LOCOMOTION_SIZE][DRAW_LOCOMOTION_SIZE];
+
+	sg_buffer vertex_buffer, index_buffer;
+	sg_pipeline program;
 } draw_locomotion_t;
 
 void draw_locomotion_create(draw_locomotion_t *);

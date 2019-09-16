@@ -285,8 +285,9 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 		};
 		physics_t *physics = ZRC_GET(zrc, physics, i);
 		if (physics) {
-			cpVect position = cpvadd(physics->position, cpvmult(physics->velocity, extra));
-
+			//cpVect velocity = cpvadd(physics->velocity, cpvmult(physics->force, extra));
+			cpVect velocity = physics->velocity;
+			cpVect position = cpvadd(physics->position, cpvmult(velocity, extra));
 			float angle = physics->angle + physics->angular_velocity * extra;
 
 			instance.size[0] = physics->radius * 2;

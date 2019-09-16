@@ -1,6 +1,14 @@
 #include <control.h>
 #include <zmath.h>
 
+void control_create(control_t *control) {
+	control->target = ID_INVALID;
+	control->unit = ID_INVALID;
+}
+void control_delete(control_t *control) {
+
+}
+
 void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *zrc) {
 	camera->zoom = 64 - ui_touch(ui, UI_TOUCH_SCROLL).y;
 
@@ -44,6 +52,7 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 		flight_thrust_t flight_thrust = { 0 };
 		flight_thrust.thrust[0] = 0;
 		flight_thrust.thrust[1] = 0;
+
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
 			flight_thrust.thrust[0] += 1;
 		}

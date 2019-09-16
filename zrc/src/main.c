@@ -31,9 +31,20 @@ static int thread(void *_) {
 	zrc_host_startup(&zrc_host, zrc);
 
 	id_t radiant = zrc_host_put(&zrc_host, guid_create());
-	ZRC_SPAWN(zrc, relate, radiant, &(relate_t){0});
 	id_t dire = zrc_host_put(&zrc_host, guid_create());
+	id_t other = zrc_host_put(&zrc_host, guid_create());
+
+	printf("radiant %d\n", radiant);
+	printf("dire %d\n", dire);
+
+	ZRC_SPAWN(zrc, relate, radiant, &(relate_t){0});
 	ZRC_SPAWN(zrc, relate, dire, &(relate_t){0});
+
+	zrc->relate_change[zrc->num_relate_changes++] = (relate_change_t) {
+		.from = dire,
+		.to = radiant,
+		.amount = -10
+	};
 
 	const float SMALL_SHIP = 2.5f;
 	const float LARGE_SHIP = 12.5;
@@ -41,8 +52,23 @@ static int thread(void *_) {
 	for (int i = 0; i < 1024; ++i) {
 		id_t id = zrc_host_put(&zrc_host, guid_create());
 
+		id_t faction;
+		if (randf() > 0.5) {
+			if (randf() > 0.5) {
+				faction = radiant;
+			} else {
+				faction = other;
+			}
+		} else {
+			if (randf() > 0.5) {
+				faction = dire;
+			} else {
+				faction = other;
+			}
+		}
+
 		physics_t physics = {
-			.type = rand() > RAND_MAX / 2 ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
+			.type = i && (randf() > 0.5) ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
 			.collide_flags = ~0,
 			.collide_mask = ~0,
 			.response_mask = ~0,
@@ -55,12 +81,13 @@ static int thread(void *_) {
 		if (!i) {
 			control.unit = id;
 			//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
-		}  {
+		} else {
 			ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
 			ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		}
 		ZRC_SPAWN(zrc, visual, id, &(visual_t) {
-			.color = color_random(255)
+			//.color = color_random(255)
+			.color = faction == radiant ? 0xff0000ff : (faction == dire ? 0xff00ff00 : 0xffff0000)
 		});
 		flight_t flight = {
 			.max_thrust = 150,
@@ -94,22 +121,33 @@ static int thread(void *_) {
 		ZRC_SPAWN(zrc, sense, id, &(sense_t) {
 			.range = 250
 		});
-		relate_t relate = {
-			.to[0] = {.id = randf() > 0.5 ? radiant : dire, .value = 1 }
+		if (!i) {
+			printf("player %d team %d\n", id, faction);
+		}
+		ZRC_SPAWN(zrc, relate, id, &(relate_t){0});
+
+		zrc->relate_change[zrc->num_relate_changes++] = (relate_change_t) {
+			.from = faction,
+			.to = id,
+			.amount = 1
 		};
-		ZRC_SPAWN(zrc, relate, id, &relate);
 	}
 
 	for (;;) {
 		zrc_tick(zrc);
 		zrc_host_tick(&zrc_host, zrc);
+
 		thrd_yield();
 	}
+
+	zrc_shutdown(zrc);
 }
 
 void init(void) {
 	stm_setup();
 	//_sapp_SwapIntervalEXT(0);
+
+	control_create(&control);
 
 	thrd_create(&thrd, thread, 0);
 
@@ -129,8 +167,8 @@ void frame(void) {
 }
 
 void cleanup(void) {
-	zrc_shutdown(zrc);
-	sg_shutdown();
+	control_delete(&control);
+	draw_delete(&draw);
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) {

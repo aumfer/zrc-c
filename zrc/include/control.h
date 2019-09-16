@@ -28,6 +28,9 @@ typedef struct control {
 	float ground[2];
 } control_t;
 
+void control_create(control_t *);
+void control_delete(control_t *);
+
 void control_frame(control_t *, const ui_t *ui, camera_t *, zrc_t *);
 
 #endif

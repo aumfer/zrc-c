@@ -21,9 +21,11 @@ registry_t zrc_components(int count, ...) {
 void zrc_startup(zrc_t *zrc) {
 	printf("zrc %zu\n", sizeof(zrc_t));
 
+	registry_startup(zrc);
 	flight_startup(zrc);
 	physics_controller_startup(zrc);
 	physics_startup(zrc);
+	visual_startup(zrc);
 	life_startup(zrc);
 	caster_startup(zrc);
 	ttl_startup(zrc);
@@ -31,6 +33,7 @@ void zrc_startup(zrc_t *zrc) {
 	locomotion_startup(zrc);
 	seek_startup(zrc);
 	sense_startup(zrc);
+	relate_startup(zrc);
 
 	zrc->ability[ABILITY_TUR_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
@@ -64,6 +67,7 @@ void zrc_startup(zrc_t *zrc) {
 	timer_create(&zrc->timer);
 }
 void zrc_shutdown(zrc_t *zrc) {
+	relate_shutdown(zrc);
 	sense_shutdown(zrc);
 	seek_shutdown(zrc);
 	locomotion_shutdown(zrc);
@@ -71,9 +75,11 @@ void zrc_shutdown(zrc_t *zrc) {
 	ttl_shutdown(zrc);
 	caster_shutdown(zrc);
 	life_shutdown(zrc);
+	visual_shutdown(zrc);
 	physics_shutdown(zrc);
 	physics_controller_shutdown(zrc);
 	flight_shutdown(zrc);
+	registry_shutdown(zrc);
 }
 
 void zrc_tick(zrc_t *zrc) {
@@ -113,53 +119,165 @@ void zrc_tick(zrc_t *zrc) {
 	}
 
 	if (frames > 1) {
-		printf("stall %d frames\n", frames-1);
+		//printf("stall %d frames\n", frames-1);
 	}
 }
 
-void ttl_startup(zrc_t *zrc) {
-	printf("ttl %zu\n", sizeof(zrc->ttl));
+void registry_startup(zrc_t *zrc) {
+	printf("registry %zu\n", sizeof(zrc->registry));
 }
-void ttl_shutdown(zrc_t *zrc) {
+void registry_shutdown(zrc_t *zrc) {
 
 }
-void ttl_create(zrc_t *zrc, id_t id, ttl_t *ttl) {
+void registry_update(zrc_t *zrc) {
+
 }
-void ttl_delete(zrc_t *zrc, id_t id, ttl_t *ttl) {
+
+void visual_startup(zrc_t *zrc) {
+	printf("visual %zu\n", sizeof(zrc->visual));
 }
-void ttl_update(zrc_t *zrc, id_t id, ttl_t *ttl) {
-	ttl->alive += TICK_RATE;
-	if (ttl->alive >= ttl->ttl) {
-		ZRC_DESPAWN_ALL(zrc, id);
+void visual_shutdown(zrc_t *zrc) {
+}
+void visual_update(zrc_t *zrc) {
+
+}
+
+void relate_startup(zrc_t *zrc) {
+	printf("relate %zu\n", sizeof(zrc->relate));
+}
+void relate_shutdown(zrc_t *zrc) {
+
+}
+static int relate_to_min(relate_t *relate) {
+	int min = -1;
+	float minv;
+	for (int i = 0; i < relate->num_relates; ++i) {
+		if (!i || relate->to[i].value < minv) {
+			min = i;
+			minv = relate->to[i].value;
+		}
+	}
+	return min;
+}
+static void relate_change_receive(zrc_t *zrc, relate_t *relate, id_t to, float value) {
+	int found = 0;
+	for (int i = 0; i < relate->num_relates; ++i) {
+		if (relate->to[i].id == to) {
+			relate->to[i].value += value;
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		if (relate->num_relates < RELATE_MAX_TO) {
+			relate->to[relate->num_relates++] = (relate_to_t){
+				.id = to,
+				.value = value
+			};
+		} else {
+			int i = relate_to_min(relate);
+			relate->to[i] = (relate_to_t) {
+				.id = to,
+					.value = value
+			};
+		}
 	}
 }
+void relate_update(zrc_t *zrc) {
+	for (int i = 0; i < zrc->num_relate_changes; ++i) {
+		relate_change_t *relate_change = &zrc->relate_change[i];
+		relate_t *a = ZRC_GET_WRITE(zrc, relate, relate_change->from);
+		relate_t *b = ZRC_GET_WRITE(zrc, relate, relate_change->to);
+		relate_change_receive(zrc, a, relate_change->to, relate_change->amount);
+		relate_change_receive(zrc, b, relate_change->from, relate_change->amount);
+	}
+	zrc->num_relate_changes = 0;
+}
 
-void sense_startup(zrc_t *zrc) {
-	printf("sense %zu\n", sizeof(zrc->sense));
+static int bfs(const zrc_t *zrc, id_t from, id_t to, id_t parent[MAX_ENTITIES]) {
+	uint8_t visited[MAX_ENTITIES / 8] = { 0 };
+	id_t q[MAX_ENTITIES];
+	unsigned q_head = 0;
+	unsigned q_tail = 0;
+	q[q_head++&MASK_ENTITIES] = from;
+	visited[from / 8] |= (1 << (from & 7));
+	parent[from] = ID_INVALID;
+	while (q_head != q_tail) {
+		id_t u = q[q_tail++&MASK_ENTITIES];
+		const relate_t *relate = &zrc->relate_query[u];
+		if (!relate) continue;
+		for (int i = 0; i < relate->num_relates; ++i) {
+			id_t v = relate->to[i].id;
+			if (!(visited[v / 8] & (1 << (v & 7))) && relate->to[i].value) {
+				q[q_head++&MASK_ENTITIES] = v;
+				parent[v] = u;
+				visited[v / 8] |= (1 << (v & 7));
+			}
+		}
+	}
+	return visited[to / 8] & (1 << (to & 7));
 }
-void sense_shutdown(zrc_t *zrc) {
+static float ff_eka(zrc_t *zrc, id_t from, id_t to) {
+	memcpy(zrc->relate_query, zrc->relate[zrc->frame&MASK_FRAMES], sizeof(zrc->relate[zrc->frame&MASK_FRAMES]));
+	id_t parent[MAX_ENTITIES];
+	memset(parent, 0xffffffff, sizeof(parent));
+	float maxflow = 0;
+	while (bfs(zrc, from, to, parent)) {
+		float pathflow = FLT_MAX;
+		id_t v = to;
+		while (v != from) {
+			id_t u = parent[v];
 
-}
-void sense_create(zrc_t *zrc, id_t id, sense_t *sense) {
+			float capacity = 0;
+			for (int i = 0; i < zrc->relate_query[u].num_relates; ++i) {
+				if (zrc->relate_query[u].to[i].id == v) {
+					capacity = (float)fabs(zrc->relate_query[u].to[i].value);
+				}
+			}
 
-}
-void sense_delete(zrc_t *zrc, id_t id, sense_t *sense) {
+			pathflow = min(pathflow, capacity);
 
+			v = u;
+		}
+
+		v = to;
+		while (v != from) {
+			id_t u = parent[v];
+
+			for (int i = 0; i < zrc->relate_query[u].num_relates; ++i) {
+				if (zrc->relate_query[u].to[i].id == v) {
+					int pos = zrc->relate_query[u].to[i].value >= 0;
+					zrc->relate_query[u].to[i].value -= pos ? pathflow : -pathflow;
+				}
+			}
+			for (int i = 0; i < zrc->relate_query[v].num_relates; ++i) {
+				if (zrc->relate_query[v].to[i].id == u) {
+					int pos = zrc->relate_query[u].to[i].value >= 0;
+					zrc->relate_query[v].to[i].value += pos ? pathflow : -pathflow;
+				}
+			}
+
+			v = u;
+		}
+		maxflow += pathflow;
+	}
+	return maxflow;
 }
-static void sense_bb_query(cpShape *shape, void *data) {
-	sense_t *sense = data;
-	id_t id = (id_t)cpShapeGetUserData(shape);
-	assert(sense->num_entities < SENSE_MAX_ENTITIES);
-	sense->entities[sense->num_entities++&SENSE_MASK_ENTITIES] = id;
-}
-void sense_update(zrc_t *zrc, id_t id, sense_t *sense) {
-	physics_t *physics = ZRC_GET(zrc, physics, id);
-	cpBB bounds = {
-		.l = physics->position.x - physics->radius - sense->range,
-		.r = physics->position.x + physics->radius + sense->range,
-		.b = physics->position.y - physics->radius - sense->range,
-		.t = physics->position.y + physics->radius + sense->range
-	};
-	sense->num_entities = 0;
-	cpSpaceBBQuery(zrc->space, bounds, CP_SHAPE_FILTER_ALL, sense_bb_query, sense);
+float relate_to_query(zrc_t *zrc, id_t a, id_t b) {
+	/*{
+		id_t parent[MAX_ENTITIES];
+		memset(parent, 0xffffffff, sizeof(parent));
+		int test = bfs(zrc, a, b, parent);
+		if (test) {
+			id_t x = b;
+			while (x != ID_INVALID) {
+				printf("%d ", x);
+				x = parent[x];
+			}
+			puts("");
+		}
+	}*/
+	float flow = ff_eka(zrc, a, b);
+	printf("flow %.2f\n", flow);
+	return flow;
 }

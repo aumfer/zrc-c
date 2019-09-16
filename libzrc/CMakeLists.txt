@@ -15,6 +15,7 @@ add_library(libzrc
     src/physics_controller.c
     src/physics.c
     src/seek.c
+    src/sense.c
     include/timer.h
     src/timer.c
     src/ttl.c

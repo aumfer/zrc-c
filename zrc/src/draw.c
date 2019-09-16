@@ -18,7 +18,7 @@ void draw_create(draw_t *draw) {
 	draw_locomotion_create(&draw->draw_locomotion);
 }
 void draw_delete(draw_t *draw) {
-
+	sg_shutdown();
 }
 
 void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *control, const camera_t *camera, float dt) {
@@ -64,6 +64,15 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 			font_print(&draw->font, hov, (float[2]) { [0] = 10, [1] = 110 }, 0xff333333);
 			font_print(&draw->font, hov, (float[2]) { [0] = 11, [1] = 111 }, 0xffcccccc);
 		}
+
+		if (control->target != control->unit) {
+			float my_relation = relate_to_query(zrc, control->unit, control->target);
+			float their_relation = relate_to_query(zrc, control->target, control->unit);
+			char rel[32];
+			sprintf_s(rel, sizeof(rel), "rel: %.0f %.0f", my_relation, their_relation);
+			font_print(&draw->font, rel, (float[2]) { [0] = 10, [1] = 130 }, 0xff333333);
+			font_print(&draw->font, rel, (float[2]) { [0] = 11, [1] = 131 }, 0xffcccccc);
+		}
 	}
 
 	for (int i = 0; i < zrc_component_count; ++i) {
@@ -81,6 +90,6 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	font_draw(&draw->font);
 
 	if (dt > TICK_RATE*1.5f) {
-		puts("drop frame");
+		//puts("drop frame");
 	}
 }

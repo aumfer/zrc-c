@@ -21,9 +21,11 @@ typedef uint16_t id_t;
 #define ID_INVALID ((id_t)-1)
 
 #define MAX_ENTITIES 16384
+#define MASK_ENTITIES (MAX_ENTITIES-1)
 #define MAX_FRAMES 64
 #define MASK_FRAMES (MAX_FRAMES-1)
 
+// todo use per-type message counts to save space
 #define MAX_MESSAGES 64
 #define MASK_MESSAGES (MAX_MESSAGES-1)
 
@@ -249,7 +251,16 @@ typedef struct relate_to {
 #define RELATE_MAX_TO 64
 typedef struct relate {
 	relate_to_t to[RELATE_MAX_TO];
+	int num_relates;
 } relate_t;
+
+typedef struct relate_change {
+	id_t from;
+	id_t to;
+	float amount;
+} relate_change_t;
+
+#define MAX_RELATE_CHANGES MAX_ENTITIES
 
 typedef struct zrc {
 	// static
@@ -296,6 +307,10 @@ typedef struct zrc {
 	void *user;
 	cpSpace *space;
 	cpCollisionHandler *collision_handler;
+
+	int num_relate_changes;
+	relate_change_t relate_change[MAX_RELATE_CHANGES];
+	relate_t relate_query[MAX_ENTITIES];
 } zrc_t;
 
 registry_t zrc_components(int count, ...);
@@ -337,6 +352,7 @@ registry_t zrc_components(int count, ...);
 				*next = *prev; \
 			} \
 		} \
+		##name##_update(zrc); \
 		uint64_t end = stm_now(); \
 		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
 	} while (0)
@@ -428,6 +444,10 @@ void zrc_startup(zrc_t *);
 void zrc_shutdown(zrc_t *);
 void zrc_tick(zrc_t *);
 
+void registry_startup(zrc_t *);
+void registry_shutdown(zrc_t *);
+void registry_update(zrc_t *);
+
 void physics_startup(zrc_t *);
 void physics_shutdown(zrc_t *);
 void physics_create(zrc_t *, id_t, physics_t *);
@@ -435,8 +455,12 @@ void physics_delete(zrc_t *, id_t, physics_t *);
 void physics_begin(zrc_t *, id_t, physics_t *);
 void physics_update(zrc_t *);
 void physics_end(zrc_t *, id_t, physics_t *);
-id_t physics_query_ray(zrc_t *, cpVect start, cpVect end, float radius);
-id_t physics_query_point(zrc_t *, cpVect point, float radius);
+id_t physics_query_ray(const zrc_t *, cpVect start, cpVect end, float radius);
+id_t physics_query_point(const zrc_t *, cpVect point, float radius);
+
+void visual_startup(zrc_t *);
+void visual_shutdown(zrc_t *);
+void visual_update(zrc_t *);
 
 void flight_startup(zrc_t *);
 void flight_shutdown(zrc_t *);
@@ -491,6 +515,11 @@ void sense_shutdown(zrc_t *);
 void sense_create(zrc_t *, id_t, sense_t *);
 void sense_delete(zrc_t *, id_t, sense_t *);
 void sense_update(zrc_t *, id_t, sense_t *);
+
+void relate_startup(zrc_t *);
+void relate_shutdown(zrc_t *);
+void relate_update(zrc_t *);
+float relate_to_query(zrc_t *, id_t, id_t);
 
 #ifdef __cplusplus
 }

@@ -14,8 +14,12 @@ void locomotion_delete(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 
 }
 static const float THRUSTS[] = {
+	//+0.25f,
+	//+0.5f,
 	+1,
-	//-1,
+	-1,
+	//-0.5f,
+	//-0.25f,
 	0
 };
 #define NUM_THRUSTS _countof(THRUSTS)
