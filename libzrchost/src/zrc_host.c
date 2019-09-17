@@ -101,10 +101,6 @@ static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 }
 static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
-	
-	if (caster_id == target->unit) {
-		return;
-	}
 
 	ability_t *ability = &zrc->ability[ability_id];
 
@@ -147,6 +143,66 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 
 	demo_world_create(&zrc_host->demo_world, zrc_host, zrc);
 
+	zrc_host->status = TF_NewStatus();
+	zrc_host->graph = TF_NewGraph();
+	TF_SessionOptions* session_options = TF_NewSessionOptions();
+	//zrc_host->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\aumfer\\zrc-learn\\", 0, 0, zrc_host->graph, 0, zrc_host->status);
+	//if (TF_GetCode(zrc_host->status) != TF_OK) {
+	//	const char *msg = TF_Message(zrc_host->status);
+	//	puts(msg);
+	//}
+	zrc_host->session = TF_NewSession(zrc_host->graph, session_options, zrc_host->status);
+	TF_DeleteSessionOptions(session_options);
+	TF_ImportGraphDefOptions* import_options = TF_NewImportGraphDefOptions();
+	FILE *f = fopen("C:\\GitHub\\aumfer\\zrc-learn\\test2.pb", "rb");
+	printf("%d", errno);
+	fseek(f, 0, SEEK_END);
+	int len = ftell(f);
+	void *buf = malloc(len);
+	fseek(f, 0, SEEK_SET);
+	size_t read = fread(buf, 1, len, f);
+	TF_Buffer* graph_def = TF_NewBufferFromString(buf, len);
+	free(buf);
+	fclose(f);
+	TF_GraphImportGraphDef(zrc_host->graph, graph_def, import_options, zrc_host->status);
+	if (TF_GetCode(zrc_host->status) != TF_OK) {
+		const char *msg = TF_Message(zrc_host->status);
+		puts(msg);
+	}
+	TF_DeleteImportGraphDefOptions(import_options);
+#if _DEBUG
+	size_t pos = 0;
+	TF_Operation *op;
+	while (op = TF_GraphNextOperation(zrc_host->graph, &pos)) {
+		const char *name = TF_OperationName(op);
+		const char *type = TF_OperationOpType(op);
+		int num_inputs = TF_OperationNumInputs(op);
+		int num_outputs = TF_OperationNumOutputs(op);
+		printf("%s %s %dx%d\n", name, type, num_inputs, num_outputs);
+	}
+#endif
+	zrc_host->input.oper = TF_GraphOperationByName(zrc_host->graph, "input/Ob");
+	zrc_host->input.index = 0;
+	zrc_host->output.oper = TF_GraphOperationByName(zrc_host->graph, "output/add");
+	zrc_host->output.index = 0;
+	zrc_host->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]){ AI_OBSERVATION_LENGTH }, 1, AI_OBSERVATION_LENGTH * sizeof(float));
+	zrc_host->output_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { AI_ACTION_LENGTH }, 1, AI_ACTION_LENGTH * sizeof(float));
+
+	//TF_Operation *init_op = TF_GraphOperationByName(zrc_host->graph, "init");
+	//TF_SessionRun(zrc_host->session, NULL,
+	//	/* No inputs */
+	//	NULL, NULL, 0,
+	//	/* No outputs */
+	//	NULL, NULL, 0,
+	//	/* Just the init operation */
+	//	(TF_Operation*[]){init_op}, 1,
+	//	/* No metadata */
+	//	NULL, zrc_host->status);
+	//if (TF_GetCode(zrc_host->status) != TF_OK) {
+	//	const char *msg = TF_Message(zrc_host->status);
+	//	puts(msg);
+	//}
+
 	timer_create(&zrc_host->timer);
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
@@ -177,6 +233,27 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		if (*read == 0 && *prev != 0) {
 			//printf("deleting %d\n", i);
 			kh_del(ehash, zrc_host->entities, i);
+		}
+	}
+	
+	for (int i = 0; i < MAX_ENTITIES; ++i) {
+		ai_t *ai = ZRC_GET(zrc, ai, i);
+		if (ai && !ai->train) {
+			float observations[AI_OBSERVATION_LENGTH];
+			ai_observe(zrc, i, observations);
+			memcpy(TF_TensorData(zrc_host->input_tensor), observations, TF_TensorByteSize(zrc_host->input_tensor));
+			TF_SessionRun(zrc_host->session, 0,
+				(TF_Output[]){ zrc_host->input }, (TF_Tensor*[]){ zrc_host->input_tensor }, 1,
+				(TF_Output[]){ zrc_host->output }, (TF_Tensor*[]){ zrc_host->output_tensor }, 1,
+				0, 0, 0, zrc_host->status);
+			if (TF_GetCode(zrc_host->status) != TF_OK) {
+				const char *msg = TF_Message(zrc_host->status);
+				puts(msg);
+			} else {
+				float actions[AI_ACTION_LENGTH];
+				memcpy(actions, TF_TensorData(zrc_host->output_tensor), TF_TensorByteSize(zrc_host->output_tensor));
+				ai_act(zrc, i, actions);
+			}
 		}
 	}
 }
@@ -220,7 +297,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 	const float MEDIUM_SHIP = 5;
 	const float LARGE_SHIP = 12.5;
 	const float CAPITAL_SHIP = 50;
-	const int NUM_TEST_ENTITIES = 1024;
+	const int NUM_TEST_ENTITIES = 64;
+	const int WORLD_FACTOR = 8;
 	for (int i = 0; i < NUM_TEST_ENTITIES; ++i) {
 		id_t id = zrc_host_put(zrc_host, guid_create());
 
@@ -256,7 +334,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			//.radius = 0.5f,
 			//.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
 			.radius = MEDIUM_SHIP,
-			.position = {.x = randf() * 4 * NUM_TEST_ENTITIES,.y = randf() * 4 * NUM_TEST_ENTITIES },
+			.position = {.x = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES,.y = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES },
 			.angle = randf() * 2 * CP_PI
 		};
 		ZRC_SPAWN(zrc, physics, id, &physics);
@@ -314,7 +392,9 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 				.amount = 1
 		};
 
-		ZRC_SPAWN(zrc, ai, id, &(ai_t){0});
+		ZRC_SPAWN(zrc, ai, id, &(ai_t){
+			.train = !i
+		});
 	}
 }
 void demo_world_delete(demo_world_t *demo_world) {

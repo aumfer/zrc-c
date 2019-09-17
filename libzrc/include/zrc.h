@@ -276,6 +276,8 @@ typedef struct relationship {
 #define AI_ACTION_LENGTH 13
 
 typedef struct ai {
+	int train;
+	float total_reward;
 	float reward;
 
 	unsigned damage_dealt_index;

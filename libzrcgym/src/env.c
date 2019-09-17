@@ -16,6 +16,7 @@ void env_reset(float *observation) {
 		stm_setup();
 	}
 	++num_resets;
+	printf("env %u\n", num_resets);
 	if (gym) {
 		gym_delete(gym);
 		free(gym);
@@ -47,7 +48,8 @@ void env_step(float *action, float *observation, float *reward, int *done) {
 			*reward += ai->reward;
 		} else {
 			*done = 1;
-			puts("done");
+			ai_t *aip = ZRC_GET_PREV(&gym->zrc, ai, gym->agent);
+			printf("done %.2f\n", aip->total_reward);
 			return;
 		}
 	}

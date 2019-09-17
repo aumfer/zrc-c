@@ -22,7 +22,9 @@ void physics_controller_create(zrc_t *zrc, id_t id, physics_controller_t *physic
 	cpBodySetType(physics_controller->body, CP_BODY_TYPE_KINEMATIC);
 
 	physics_controller->pivot = cpPivotJointNew2(physics_controller->body, physics->body, cpvzero, cpvzero);
+	cpConstraintSetMaxBias(physics_controller->pivot, 0);
 	physics_controller->gear = cpGearJointNew(physics_controller->body, physics->body, 0, 1);
+	cpConstraintSetMaxBias(physics_controller->gear, 0);
 	//physics_controller->pivot = cpDampedSpringNew(physics_controller->body, physics->body, cpvzero, cpvzero, 0, 5, 3);
 	//physics_controller->gear = cpDampedRotarySpringNew(physics_controller->body, physics->body, 0, 5, 3);
 

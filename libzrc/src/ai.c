@@ -7,6 +7,8 @@ static float ability_vector[ABILITY_COUNT][ABILITY_COUNT];
 
 static ability_id_t ability_match(const ai_t *ai, float *v);
 
+#define isvalid(v) (!v || isnormal(v))
+
 void ai_startup(zrc_t *zrc) {
 	//printf("ai %zu\n", sizeof(zrc->ai));
 	for (int i = 0; i < ABILITY_COUNT; ++i) {
@@ -56,10 +58,10 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	});
 
 	next_reward /= 1000;
-	assert(!isnan(next_reward) && !isinf(next_reward));
 	ai->reward = next_reward;
-}
 
+	ai->total_reward += ai->reward;
+}
 void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 	const ai_t *ai = ZRC_GET(zrc, ai, id);
 	const physics_t *physics = ZRC_GET(zrc, physics, id);
@@ -84,14 +86,14 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 		cpVect srel_scale_offset = cpvrotate(sscale_offset, cpvforangle(physics->angle));
 		observation[op++] = srel_scale_offset.x;
 		observation[op++] = srel_scale_offset.y;
-		float scaled_dist = cpvdistsq(physics->position, sphysics->position) / (sense->range*sense->range);
+		float scaled_dist = cpvdistsq(physics->position, sphysics->position) / max(1, sense->range*sense->range);
 		observation[op++] = scaled_dist;
 		float angle = sphysics->angle;
 		observation[op++] = angle / (CP_PI * 2);
 		float srel_angle = angle - physics->angle;
 		observation[op++] = srel_angle / (CP_PI * 2);
 		cpVect svelocity = sphysics->velocity;
-		cpVect sscale_velocity = cpvmult(svelocity, 1 / sense->range);
+		cpVect sscale_velocity = cpvmult(svelocity, 1 / max(1, sense->range));
 		observation[op++] = sscale_velocity.x;
 		observation[op++] = sscale_velocity.y;
 		cpVect srel_scale_velocity = cpvrotate(sscale_velocity, cpvforangle(physics->angle));
@@ -103,7 +105,7 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 			const ability_t *sability = &zrc->ability[scaster_ability->ability];
 			memcpy(&observation[op], ability_vector[scaster_ability->ability], sizeof(ability_vector[scaster_ability->ability]));
 			op += ABILITY_COUNT;
-			float scaled_range = sability->range / sense->range;
+			float scaled_range = sability->range / max(1, sense->range);
 			observation[op++] = scaled_range;
 			float scaled_uptime = scaster_ability->uptime / max(1, sability->channel);
 			observation[op++] = scaled_uptime;
@@ -111,7 +113,7 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 			observation[op++] = scaled_downtime;
 			cpVect starget = cpv(scaster_ability->target.point[0], scaster_ability->target.point[1]);
 			cpVect starget_offset = cpvsub(starget, physics->position);
-			cpVect starget_scale_offset = cpvmult(starget_offset, 1 / sense->range);
+			cpVect starget_scale_offset = cpvmult(starget_offset, 1 / max(1, sense->range));
 			observation[op++] = starget_scale_offset.x;
 			observation[op++] = starget_scale_offset.y;
 			cpVect starget_rel_scale_offset = cpvrotate(starget_scale_offset, cpvforangle(physics->angle));
@@ -134,13 +136,6 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 		observation[op++] = ragepct;
 	}
 	assert(op == AI_OBSERVATION_LENGTH);
-	for (int i = 0; i < op; ++i) {
-		int invalid = isnan(observation[i]) || isinf(observation[i]);
-		if (invalid) {
-			printf("invalid observation %d %.2f\n", i, observation[i]);
-		}
-		assert(!invalid);
-	}
 }
 
 static unsigned has_cast[ABILITY_COUNT];
