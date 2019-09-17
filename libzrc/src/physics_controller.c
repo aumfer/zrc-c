@@ -2,10 +2,15 @@
 #include <stdio.h>
 
 void physics_controller_startup(zrc_t *zrc) {
-	printf("physics_controller %zu\n", sizeof(zrc->physics_controller));
+	//printf("physics_controller %zu\n", sizeof(zrc->physics_controller));
 }
 void physics_controller_shutdown(zrc_t *zrc) {
-
+	for (int i = 0; i < MAX_ENTITIES; ++i) {
+		physics_controller_t *physics_controller = ZRC_GET(zrc, physics_controller, i);
+		if (physics_controller) {
+			physics_controller_delete(zrc, i, physics_controller);
+		}
+	}
 }
 void physics_controller_create(zrc_t *zrc, id_t id, physics_controller_t *physics_controller) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);

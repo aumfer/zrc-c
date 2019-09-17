@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void life_startup(zrc_t *zrc) {
-	printf("life %zu\n", sizeof(zrc->life));
+	//printf("life %zu\n", sizeof(zrc->life));
 }
 void life_shutdown(zrc_t *zrc) {
 }
@@ -47,6 +47,8 @@ void life_update(zrc_t *zrc, id_t id, life_t *life) {
 		ZRC_SEND(zrc, damage, id, &selfharm);
 	}
 	if (life->health <= 0) {
+		printf("%d dead\n", id);
+		ZRC_SEND(zrc, got_kill, damage->from, &id);
 		ZRC_DESPAWN_ALL(zrc, id);
 	}
 }

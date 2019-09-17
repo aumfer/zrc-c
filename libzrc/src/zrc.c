@@ -23,8 +23,8 @@ void zrc_startup(zrc_t *zrc) {
 
 	registry_startup(zrc);
 	flight_startup(zrc);
-	physics_controller_startup(zrc);
 	physics_startup(zrc);
+	physics_controller_startup(zrc);
 	visual_startup(zrc);
 	life_startup(zrc);
 	caster_startup(zrc);
@@ -78,8 +78,8 @@ void zrc_shutdown(zrc_t *zrc) {
 	caster_shutdown(zrc);
 	life_shutdown(zrc);
 	visual_shutdown(zrc);
-	physics_shutdown(zrc);
 	physics_controller_shutdown(zrc);
+	physics_shutdown(zrc);
 	flight_shutdown(zrc);
 	registry_shutdown(zrc);
 }
@@ -107,21 +107,36 @@ void zrc_tick(zrc_t *zrc) {
 void zrc_update(zrc_t *zrc) {
 	++zrc->frame;
 
+	//int i = 0;
+	//printf("%u %d", zrc->frame, i++);
 	ZRC_UPDATE0(zrc, registry);
-
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, flight);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, physics_controller);
+	//printf(".%d", i++);
 	ZRC_UPDATE2(zrc, physics);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, life);
+	//printf(".%d", i++);
 	ZRC_UPDATE0(zrc, visual);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, caster);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, ttl);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, contact_damage);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, locomotion);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, seek);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, sense);
+	//printf(".%d", i++);
 	ZRC_UPDATE0(zrc, relate);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, ai);
+	//puts(".done");
 
 	uint64_t update_ticks = 0;
 	for (int i = 0; i < zrc_component_count; ++i) {
@@ -132,7 +147,7 @@ void zrc_update(zrc_t *zrc) {
 }
 
 void registry_startup(zrc_t *zrc) {
-	printf("registry %zu\n", sizeof(zrc->registry));
+	//printf("registry %zu\n", sizeof(zrc->registry));
 }
 void registry_shutdown(zrc_t *zrc) {
 
@@ -142,7 +157,7 @@ void registry_update(zrc_t *zrc) {
 }
 
 void visual_startup(zrc_t *zrc) {
-	printf("visual %zu\n", sizeof(zrc->visual));
+	//printf("visual %zu\n", sizeof(zrc->visual));
 }
 void visual_shutdown(zrc_t *zrc) {
 }
@@ -151,7 +166,7 @@ void visual_update(zrc_t *zrc) {
 }
 
 void relate_startup(zrc_t *zrc) {
-	printf("relate %zu\n", sizeof(zrc->relate));
+	//printf("relate %zu\n", sizeof(zrc->relate));
 }
 void relate_shutdown(zrc_t *zrc) {
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void caster_startup(zrc_t *zrc) {
-	printf("caster %zu\n", sizeof(zrc->caster));
+	//printf("caster %zu\n", sizeof(zrc->caster));
 }
 void caster_shutdown(zrc_t *zrc) {
 }
@@ -38,8 +38,7 @@ void caster_update(zrc_t *zrc, id_t id, caster_t *caster) {
 				caster_ability->downtime += caster_ability->uptime;
 				caster_ability->uptime = 0;
 			}
-		}
-		else {
+		} else {
 			caster_ability->downtime += TICK_RATE;
 			if ((caster_ability->cast_flags & CAST_WANTCAST) == CAST_WANTCAST) {
 				if (caster_ability->downtime >= ability->cooldown) {

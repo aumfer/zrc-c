@@ -4,7 +4,7 @@
 static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void *data);
 
 void contact_damage_startup(zrc_t *zrc) {
-	printf("contact_damage %zu\n", sizeof(zrc->contact_damage));
+	//printf("contact_damage %zu\n", sizeof(zrc->contact_damage));
 }
 void contact_damage_shutdown(zrc_t *zrc) {
 

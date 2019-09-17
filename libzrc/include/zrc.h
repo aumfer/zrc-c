@@ -65,6 +65,7 @@ typedef struct physics {
 	cpBitmask response_mask;
 	float max_speed;
 	float max_spin;
+	float damping;
 
 	float radius;
 	float angle;
@@ -251,7 +252,7 @@ typedef struct sense {
 	float range;
 
 	id_t entities[SENSE_MAX_ENTITIES];
-	unsigned num_entities;
+	int num_entities;
 } sense_t;
 
 typedef struct relate_to {
@@ -271,13 +272,14 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
-#define AI_OBSERVATION_LENGTH 5696
+#define AI_OBSERVATION_LENGTH 6144
 #define AI_ACTION_LENGTH 13
 
 typedef struct ai {
 	float reward;
 
 	unsigned damage_dealt_index;
+	unsigned got_kill_index;
 } ai_t;
 
 #define MAX_RELATE_CHANGES MAX_ENTITIES
@@ -319,6 +321,8 @@ typedef struct zrc {
 	seek_to_t seek_to[MAX_ENTITIES][MAX_MESSAGES];
 	unsigned num_damage_dealt[MAX_ENTITIES];
 	damage_dealt_t damage_dealt[MAX_ENTITIES][MAX_MESSAGES];
+	unsigned num_got_kill[MAX_ENTITIES];
+	id_t got_kill[MAX_ENTITIES][MAX_MESSAGES];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
@@ -339,30 +343,30 @@ typedef struct zrc {
 registry_t zrc_components(int count, ...);
 
 #define ZRC_PAST_FRAME(zrc, n) (((zrc)->frame - (n)) & MASK_FRAMES)
-#define ZRC_PREV_FRAME(zrc) ZRC_PAST_FRAME(zrc, 2)
-#define ZRC_READ_FRAME(zrc) ZRC_PAST_FRAME(zrc, 1)
-#define ZRC_WRITE_FRAME(zrc) ZRC_PAST_FRAME(zrc, 0)
-#define ZRC_NEXT_FRAME(zrc) ZRC_PAST_FRAME(zrc, -1)
+#define ZRC_PREV_FRAME(zrc) ZRC_PAST_FRAME(zrc, 1)
+#define ZRC_READ_FRAME(zrc) ZRC_PAST_FRAME(zrc, 0)
+#define ZRC_WRITE_FRAME(zrc) ZRC_PAST_FRAME(zrc, -1)
+#define ZRC_NEXT_FRAME(zrc) ZRC_PAST_FRAME(zrc, -2)
 
-#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][id&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
 
-#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][id&MASK_ENTITIES])
-#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][id&MASK_ENTITIES])
-#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][id&MASK_ENTITIES])
-#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][id&MASK_ENTITIES])
-#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][id&MASK_ENTITIES])
+#define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][(id)&MASK_ENTITIES])
+#define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][(id)&MASK_ENTITIES])
+#define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][(id)&MASK_ENTITIES])
+#define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][(id)&MASK_ENTITIES])
+#define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][(id)&MASK_ENTITIES])
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
-	for (unsigned i = (*(start)); i < (zrc)->num_##name##[id&MASK_ENTITIES]; ++i) { \
-		(var) = &(zrc)->##name##[id&MASK_ENTITIES][i&MASK_MESSAGES]; \
+	for (unsigned i = (*(start)); i < (zrc)->num_##name##[(id)&MASK_ENTITIES]; ++i) { \
+		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][i&MASK_MESSAGES]; \
 		code; \
 		++(*(start)); \
 	}
 
-#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[id&MASK_ENTITIES][(zrc)->num_##name##[id&MASK_ENTITIES]++&MASK_MESSAGES] = *(val)
+#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->num_##name##[(id)&MASK_ENTITIES]++)&MASK_MESSAGES] = *(val)
 
 // components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \

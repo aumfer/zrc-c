@@ -6,7 +6,7 @@ static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPoi
 static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt);
 
 void physics_startup(zrc_t *zrc) {
-	printf("physics %zu\n", sizeof(zrc->physics));
+	//printf("physics %zu\n", sizeof(zrc->physics));
 
 	zrc->space = cpSpaceNew();
 	//const float LOAD_FACTOR = 0.1f;
@@ -17,15 +17,31 @@ void physics_startup(zrc_t *zrc) {
 	zrc->collision_handler->beginFunc = physics_collision_begin;
 	zrc->collision_handler->separateFunc = physics_collision_separate;
 }
+static physics_deletebody(cpBody *body, void *data) {
+	cpSpaceRemoveBody(cpBodyGetSpace(body), body);
+	cpBodyFree(body);
+}
+static physics_deleteshape(cpShape *shape, void *data) {
+	cpSpaceRemoveShape(cpShapeGetSpace(shape), shape);
+	cpShapeFree(shape);
+}
 void physics_shutdown(zrc_t *zrc) {
-
+	for (int i = 0; i < MAX_ENTITIES; ++i) {
+		physics_t *physics = ZRC_GET(zrc, physics, i);
+		if (physics) {
+			physics_delete(zrc, i, physics);
+		}
+	}
+	//cpSpaceEachBody(zrc->space, physics_deletebody, 0);
+	//cpSpaceEachShape(zrc->space, physics_deleteshape, 0);
+	cpSpaceFree(zrc->space);
 }
 
 void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
-	//cpFloat mass = physics->radius * 2 * CP_PI;
-	cpFloat mass = 1;
-	//cpFloat moment = cpMomentForCircle(mass, 0, physics->radius*2, cpvzero);
-	cpFloat moment = 1;
+	cpFloat mass = physics->radius * 2 * CP_PI;
+	//cpFloat mass = 1;
+	cpFloat moment = cpMomentForCircle(mass, 0, physics->radius*2, cpvzero);
+	//cpFloat moment = 1;
 	physics->body = cpBodyNew(mass, moment);
 	cpBodySetType(physics->body, physics->type);
 	cpBodySetVelocityUpdateFunc(physics->body, physics_velocity_update);
@@ -141,11 +157,11 @@ static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPoi
 static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt) {
 	id_t id = (id_t)cpBodyGetUserData(body);
 
-	cpBodyUpdateVelocity(body, gravity, damping, dt);
-
 	cpSpace *space = cpBodyGetSpace(body);
 	zrc_t *zrc = cpSpaceGetUserData(space);
 	physics_t *physics = ZRC_GET(zrc, physics, id);
+
+	cpBodyUpdateVelocity(body, gravity, 1 - physics->damping, dt);
 
 	if (physics) {
 		if (physics->max_speed) {

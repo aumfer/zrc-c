@@ -51,7 +51,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 		char spd[32];
 		cpFloat speed = cpvlength(physics->velocity);
-		sprintf_s(spd, sizeof(spd), "speed: %.0f %.0f", speed, fabs(physics->angular_velocity));
+		sprintf_s(spd, sizeof(spd), "speed: %.2f %.2f", speed, fabs(physics->angular_velocity));
 		font_print(&draw->font, spd, (float[2]) { [0] = 10, [1] = 90 }, 0xff333333);
 		font_print(&draw->font, spd, (float[2]) { [0] = 11, [1] = 91 }, 0xffcccccc);
 	}
@@ -73,6 +73,27 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 			font_print(&draw->font, rel, (float[2]) { [0] = 10, [1] = 130 }, 0xff333333);
 			font_print(&draw->font, rel, (float[2]) { [0] = 11, [1] = 131 }, 0xffcccccc);
 		}
+	}
+
+	sense_t *sense = ZRC_GET(zrc, sense, control->unit);
+	if (sense) {
+		char numsense[32];
+		sprintf_s(numsense, sizeof(numsense), "sense: %d", sense->num_entities);
+		font_print(&draw->font, numsense, (float[2]) { [0] = 10, [1] = 150 }, 0xff333333);
+		font_print(&draw->font, numsense, (float[2]) { [0] = 11, [1] = 151 }, 0xffcccccc);
+	}
+
+	ai_t *ai = ZRC_GET(zrc, ai, control->unit);
+	if (ai) {
+		char reward[32];
+		float totalreward = 0;
+		for (int i = 0; i < 3; ++i) {
+			ai_t *aip = ZRC_GET_PAST(zrc, ai, control->unit, i);
+			totalreward += aip->reward;
+		}
+		sprintf_s(reward, sizeof(reward), "reward: %.2f", totalreward);
+		font_print(&draw->font, reward, (float[2]) { [0] = 10, [1] = 170 }, 0xff333333);
+		font_print(&draw->font, reward, (float[2]) { [0] = 11, [1] = 171 }, 0xffcccccc);
 	}
 
 	for (int i = 0; i < zrc_component_count; ++i) {

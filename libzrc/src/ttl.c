@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void ttl_startup(zrc_t *zrc) {
-	printf("ttl %zu\n", sizeof(zrc->ttl));
+	//printf("ttl %zu\n", sizeof(zrc->ttl));
 }
 void ttl_shutdown(zrc_t *zrc) {
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void flight_startup(zrc_t *zrc) {
-	printf("flight %zu\n", sizeof(zrc->flight));
+	//printf("flight %zu\n", sizeof(zrc->flight));
 }
 void flight_shutdown(zrc_t *zrc) {
 }
@@ -50,11 +50,13 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	} else {
 		float damp = 2;
 
-		cpVect force_damp = cpvmult(physics->velocity, -damp);
-		float torque_damp = (float)(physics->angular_velocity * -damp);
-
-		cpVect apply_force = cpvadd(force, force_damp);
-		float apply_torque = torque + torque_damp;
+		//cpVect force_damp = cpvmult(physics->velocity, -damp);
+		//float torque_damp = (float)(physics->angular_velocity * -damp);
+		//
+		//cpVect apply_force = cpvadd(force, force_damp);
+		//float apply_torque = torque + torque_damp;
+		cpVect apply_force = force;
+		float apply_torque = torque;
 
 		if (!cpveql(apply_force, cpvzero) || apply_torque != 0) {
 			physics_force_t physics_force = {

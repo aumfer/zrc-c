@@ -11,7 +11,7 @@ typedef struct demo_world {
 } demo_world_t;
 
 typedef struct zrc_host {
-	khash_t(ehash) entities;
+	khash_t(ehash) *entities;
 	demo_world_t demo_world; // todo move
 
 	timer_t timer;

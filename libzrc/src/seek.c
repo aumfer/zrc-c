@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void seek_startup(zrc_t *zrc) {
-	printf("seek %zu\n", sizeof(zrc->seek));
+	//printf("seek %zu\n", sizeof(zrc->seek));
 }
 void seek_shutdown(zrc_t *zrc) {
 

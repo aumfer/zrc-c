@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void locomotion_startup(zrc_t *zrc) {
-	printf("locomotion %zu\n", sizeof(zrc->locomotion));
+	//printf("locomotion %zu\n", sizeof(zrc->locomotion));
 }
 void locomotion_shutdown(zrc_t *zrc) {
 

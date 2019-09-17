@@ -32,7 +32,7 @@ static void cast_tur_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 		.damage = {
 			.from = caster_id,
 			.ability = ability_id,
-			.health = 10
+			.health = 10*2
 		},
 		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
 		.onhit_id = zrc_host_put(zrc_host, guid_create()),
@@ -85,7 +85,7 @@ static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 		.damage = {
 			.from = caster_id,
 			.ability = ability_id,
-			.health = 30
+			.health = 30*2
 		},
 		.flags = CONTACT_DAMAGE_DESPAWN_ON_HIT,
 		.onhit_id = zrc_host_put(zrc_host, guid_create()),
@@ -101,12 +101,16 @@ static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 }
 static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
+	
+	if (caster_id == target->unit) {
+		return;
+	}
 
 	ability_t *ability = &zrc->ability[ability_id];
 
 	damage_t damage = {
 		.from = caster_id,
-		.health = 20
+		.health = 20*2
 	};
 	ZRC_SEND(zrc, damage, target->unit, &damage);
 
@@ -129,9 +133,12 @@ static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id
 }
 
 void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
+	printf("zrc_host %zu\n", sizeof(zrc_host_t));
+
 	zrc->user = zrc_host;
 
-	kh_resize(ehash, &zrc_host->entities, MAX_ENTITIES);
+	zrc_host->entities = kh_init(ehash);
+	kh_resize(ehash, zrc_host->entities, MAX_ENTITIES);
 
 	zrc->ability[ABILITY_TUR_PROJ_ATTACK].cast = cast_tur_proj_attack;
 	zrc->ability[ABILITY_BLINK].cast = cast_blink;
@@ -143,6 +150,7 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 	timer_create(&zrc_host->timer);
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
+	kh_destroy(ehash, zrc_host->entities);
 }
 
 void zrc_host_tick(zrc_host_t *zrc_host, zrc_t *zrc) {
@@ -168,24 +176,24 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		registry_t *prev = ZRC_GET_PREV(zrc, registry, i);
 		if (*read == 0 && *prev != 0) {
 			//printf("deleting %d\n", i);
-			kh_del(ehash, &zrc_host->entities, i);
+			kh_del(ehash, zrc_host->entities, i);
 		}
 	}
 }
 
 id_t zrc_host_put(zrc_host_t *zrc_host, guid_t guid) {
 	int absent;
-	khint_t k = kh_put(ehash, &zrc_host->entities, guid, &absent);
+	khint_t k = kh_put(ehash, zrc_host->entities, guid, &absent);
 	return (id_t)k;
 }
 id_t zrc_host_del(zrc_host_t *zrc_host, guid_t guid) {
-	khint_t k = kh_get(ehash, &zrc_host->entities, guid);
-	kh_del(ehash, &zrc_host->entities, k);
+	khint_t k = kh_get(ehash, zrc_host->entities, guid);
+	kh_del(ehash, zrc_host->entities, k);
 	return (id_t)k;
 }
 id_t zrc_host_get(const zrc_host_t *zrc_host, guid_t guid) {
-	khint_t k = kh_get(ehash, &zrc_host->entities, guid);
-	return k == kh_end(&zrc_host->entities) ? ID_INVALID : (id_t)k;
+	khint_t k = kh_get(ehash, zrc_host->entities, guid);
+	return k == kh_end(zrc_host->entities) ? ID_INVALID : (id_t)k;
 }
 
 void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zrc) {
@@ -209,9 +217,10 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 	};
 
 	const float SMALL_SHIP = 2.5f;
+	const float MEDIUM_SHIP = 5;
 	const float LARGE_SHIP = 12.5;
 	const float CAPITAL_SHIP = 50;
-	const int NUM_TEST_ENTITIES = 64;
+	const int NUM_TEST_ENTITIES = 1024;
 	for (int i = 0; i < NUM_TEST_ENTITIES; ++i) {
 		id_t id = zrc_host_put(zrc_host, guid_create());
 
@@ -236,13 +245,18 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		}
 
 		physics_t physics = {
-			.type = i && (randf() > 0.5) ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
+			//.type = i && (randf() > 0.5) ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
+			.type = CP_BODY_TYPE_DYNAMIC,
 			.collide_flags = ~0,
 			.collide_mask = ~0,
 			.response_mask = ~0,
+			.max_speed = 150,
+			.max_spin = 2,
+			.damping = 0.05f,
 			//.radius = 0.5f,
-			.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
-			.position = {.x = randf() * 8 * NUM_TEST_ENTITIES,.y = randf() * 8 * NUM_TEST_ENTITIES },
+			//.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
+			.radius = MEDIUM_SHIP,
+			.position = {.x = randf() * 4 * NUM_TEST_ENTITIES,.y = randf() * 4 * NUM_TEST_ENTITIES },
 			.angle = randf() * 2 * CP_PI
 		};
 		ZRC_SPAWN(zrc, physics, id, &physics);
@@ -258,8 +272,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.color = faction == radiant ? 0xff0000ff : (faction == dire ? 0xff00ff00 : 0xffff0000)
 		});
 		flight_t flight = {
-			.max_thrust = 150,
-			.max_turn = 5
+			.max_thrust = 15000,
+			.max_turn = 15000
 		};
 		ZRC_SPAWN(zrc, flight, id, &flight);
 		life_t life = {
