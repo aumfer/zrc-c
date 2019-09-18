@@ -1,12 +1,9 @@
 #include <zrc.h>
 #include <font.h>
 #include <stdio.h>
-#include <draw.h>
-#include <camera.h>
-#include <ui.h>
-#include <control.h>
 #include <tinycthread.h>
 #include <zrc_host.h>
+#include <zrc_draw.h>
 
 #define SOKOL_IMPL
 #define SOKOL_WIN32_FORCE_MAIN
@@ -15,61 +12,51 @@
 #include <sokol_app.h>
 #include <sokol_gfx.h>
 
-static zrc_t noalloc;
-static zrc_t *zrc = &noalloc;
-static draw_t draw;
-static camera_t camera;
-static ui_t ui;
-static control_t control;
-static thrd_t thrd;
-static timer_t frame_timer;
-
+static zrc_t zrc;
 static zrc_host_t zrc_host;
+static zrc_draw_t zrc_draw;
+static thrd_t thrd;
+
+static int quit;
 
 static int thread(void *_) {
-	zrc_startup(zrc);
-	zrc_host_startup(&zrc_host, zrc);
+	zrc_startup(&zrc);
+	zrc_host_startup(&zrc_host, &zrc);
 
-	control.unit = zrc_host.demo_world.player;
+	zrc_draw.control.unit = zrc_host.demo_world.player;
 
 	// todo update_timer, accumulator, call zrc_update, remove zrc_tick
 
-	for (;;) {
-		zrc_tick(zrc);
-		zrc_host_tick(&zrc_host, zrc);
+	while (!quit) {
+		zrc_tick(&zrc);
+		zrc_host_tick(&zrc_host, &zrc);
 
 		thrd_yield();
 	}
 
-	zrc_shutdown(zrc);
+	zrc_shutdown(&zrc);
+
+	return 0;
 }
 
-void init(void) {
+static void init(void) {
 	stm_setup();
 	//_sapp_SwapIntervalEXT(0);
 
-	control_create(&control);
-
 	thrd_create(&thrd, thread, 0);
 
-	draw_create(&draw);
+	zrc_draw_create(&zrc_draw);
 }
 
-void frame(void) {
-	timer_update(&frame_timer);
-	float dt = (float)stm_sec(frame_timer.dt);
-
-	ui_frame(&ui);
-	control_frame(&control, &ui, &camera, zrc);
-
-	camera_frame(&camera, dt);
-
-	draw_frame(&draw, zrc, &ui, &control, &camera, dt);
+static void frame(void) {
+	zrc_draw_frame(&zrc_draw, &zrc);
 }
 
-void cleanup(void) {
-	control_delete(&control);
-	draw_delete(&draw);
+static void cleanup(void) {
+	quit = 1;
+	zrc_draw_delete(&zrc_draw);
+	int res;
+	thrd_join(&thrd, &res);
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) {
@@ -77,7 +64,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 		.init_cb = init,
 		.frame_cb = frame,
 		.cleanup_cb = cleanup,
-		.user_data = &ui,
+		.user_data = &zrc_draw.ui,
 		.event_userdata_cb = ui_event_cb,
 		.width = 1920/2,
 		.height = 1080/2,

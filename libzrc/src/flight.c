@@ -14,7 +14,7 @@ void flight_delete(zrc_t *zrc, id_t id, flight_t *flight) {
 }
 void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(physics);
+	zrc_assert(physics);
 
 	cpVect sum_force = cpvzero;
 	float sum_torque = 0;

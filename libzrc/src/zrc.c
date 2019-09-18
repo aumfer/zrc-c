@@ -19,7 +19,7 @@ registry_t zrc_components(int count, ...) {
 }
 
 void zrc_startup(zrc_t *zrc) {
-	printf("zrc %zu\n", sizeof(zrc_t));
+	//printf("zrc %zu\n", sizeof(zrc_t));
 
 	registry_startup(zrc);
 	flight_startup(zrc);

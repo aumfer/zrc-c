@@ -29,10 +29,11 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	sense_t *sense = ZRC_GET(zrc, sense, id);
 	life_t *life = ZRC_GET(zrc, life, id);
 
+#if 1
 	// give baseline reward [0,1] for being near entities
 	if (physics && sense) {
 		// base-baseline reward toward (0,0) in case we can't see anyone
-		next_reward += (1 / cpvlengthsq(physics->position));
+		//next_reward += (1 / cpvlengthsq(physics->position));
 		float sum_dist = 0;
 		int num_dist = 0;
 		for (int i = 0; i < sense->num_entities; ++i) {
@@ -40,15 +41,13 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 			physics_t *sphysics = ZRC_GET(zrc, physics, sid);
 			if (physics) {
 				float d = cpvdistsq(physics->position, sphysics->position);
-				sum_dist += d;
+				sum_dist += 1 / max(1, d);
 				++num_dist;
 			}
 		}
-		if (num_dist) {
-			sum_dist /= num_dist;
-			next_reward += 1 / max(1, sum_dist);
-		}
+		next_reward += sum_dist * TICK_RATE;
 	}
+#endif
 
 	// reward for damage dealt
 	damage_dealt_t *damage_dealt;
@@ -58,13 +57,13 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 
 	id_t *killed;
 	ZRC_RECEIVE(zrc, got_kill, id, &ai->got_kill_index, killed, {
-		next_reward += 100;
+		next_reward += 10000;
 	});
 
 	if (life) {
 		damage_t *damage;
 		ZRC_RECEIVE(zrc, damage, id, &ai->damage_taken_index, damage, {
-			next_reward -= damage->health * (1 / max(0.01f, life->health / life->max_health));
+			next_reward -= damage->health * (1 / max(0.1f, life->health / life->max_health));
 		});
 	}
 
@@ -77,7 +76,7 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 	const ai_t *ai = ZRC_GET_PAST(zrc, ai, id, frame);
 	const physics_t *physics = ZRC_GET_PAST(zrc, physics, id, frame);
 	const sense_t *sense = ZRC_GET_PAST(zrc, sense, id, frame);
-	assert(ai && physics && sense);
+	zrc_assert(ai && physics && sense);
 	int op = 0;
 
 	for (int i = 0; i < SENSE_MAX_ENTITIES; ++i) {
@@ -88,28 +87,33 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 
 		float isme = id == sid ? 1.0f : 0.0f;
 		observation[op++] = isme;
-		float sradius = sphysics->radius / MAP_SCALE;
-		observation[op++] = sradius;
-		cpVect soffset = cpvsub(sphysics->position, physics->position);
-		cpVect sscale_offset = cpvmult(soffset, 1 / sense->range);
-		observation[op++] = sscale_offset.x;
-		observation[op++] = sscale_offset.y;
-		cpVect srel_scale_offset = cpvrotate(sscale_offset, cpvforangle(physics->angle));
-		observation[op++] = srel_scale_offset.x;
-		observation[op++] = srel_scale_offset.y;
-		float scaled_dist = cpvdistsq(physics->position, sphysics->position) / max(1, sense->range*sense->range);
-		observation[op++] = scaled_dist;
-		float angle = sphysics->angle;
-		observation[op++] = angle / (CP_PI * 2);
-		float srel_angle = angle - physics->angle;
-		observation[op++] = srel_angle / (CP_PI * 2);
-		cpVect svelocity = sphysics->velocity;
-		cpVect sscale_velocity = cpvmult(svelocity, 1 / max(1, sense->range));
-		observation[op++] = sscale_velocity.x;
-		observation[op++] = sscale_velocity.y;
-		cpVect srel_scale_velocity = cpvrotate(sscale_velocity, cpvforangle(physics->angle));
-		observation[op++] = srel_scale_velocity.x;
-		observation[op++] = srel_scale_velocity.y;
+		if (ZRC_HAD_PAST(zrc, physics, sid, frame)) {
+			float sradius = sphysics->radius / MAP_SCALE;
+			observation[op++] = sradius;
+			cpVect soffset = cpvsub(sphysics->position, physics->position);
+			cpVect sscale_offset = cpvmult(soffset, 1 / sense->range);
+			observation[op++] = sscale_offset.x;
+			observation[op++] = sscale_offset.y;
+			cpVect srel_scale_offset = cpvrotate(sscale_offset, cpvforangle(physics->angle));
+			observation[op++] = srel_scale_offset.x;
+			observation[op++] = srel_scale_offset.y;
+			float scaled_dist = cpvdistsq(physics->position, sphysics->position) / max(1, sense->range*sense->range);
+			observation[op++] = scaled_dist;
+			float angle = sphysics->angle;
+			observation[op++] = angle / (CP_PI * 2);
+			float srel_angle = angle - physics->angle;
+			observation[op++] = srel_angle / (CP_PI * 2);
+			cpVect svelocity = sphysics->velocity;
+			cpVect sscale_velocity = cpvmult(svelocity, 1 / max(1, sense->range));
+			observation[op++] = sscale_velocity.x;
+			observation[op++] = sscale_velocity.y;
+			cpVect srel_scale_velocity = cpvrotate(sscale_velocity, cpvforangle(physics->angle));
+			observation[op++] = srel_scale_velocity.x;
+			observation[op++] = srel_scale_velocity.y;
+		} else {
+			memset(&observation[op], 0, sizeof(float) * 12);
+			op += 12;
+		}
 
 #if 0
 		for (int j = 0; j < CASTER_MAX_ABLITIES; ++j) {
@@ -143,22 +147,26 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 			observation[op++] = is_cast;
 		}
 #endif
-
-		float healthpct = slife->health / max(1, slife->max_health);
-		observation[op++] = healthpct;
-		float manapct = slife->mana / max(1, slife->max_mana);
-		observation[op++] = manapct;
-		float ragepct = slife->rage / max(1, slife->max_rage);
-		observation[op++] = ragepct;
+		if (ZRC_HAD_PAST(zrc, life, sid, frame)) {
+			float healthpct = slife->health / max(1, slife->max_health);
+			observation[op++] = healthpct;
+			float manapct = slife->mana / max(1, slife->max_mana);
+			observation[op++] = manapct;
+			float ragepct = slife->rage / max(1, slife->max_rage);
+			observation[op++] = ragepct;
+		} else {
+			memset(&observation[op], 0, sizeof(float) * 3);
+			op += 3;
+		}
 	}
-	assert(op == AI_OBSERVATION_LENGTH);
+	zrc_assert(op == AI_OBSERVATION_LENGTH);
 #if 0
 	for (int i = 0; i < AI_OBSERVATION_LENGTH; ++i) {
 		if (!isvalid(observation[i])) {
 			observation[i] = 0;
-			assert(0);
+			zrc_assert(0);
 		}
-		assert(isvalid(observation[i]));
+		zrc_assert(isvalid(observation[i]));
 	}
 #endif
 }
@@ -169,13 +177,12 @@ void ai_act(zrc_t *zrc, id_t id, float *action) {
 	for (int i = 0; i < AI_ACTION_LENGTH; ++i) {
 		if (!isvalid(action[i])) {
 			action[i] = 0;
-			//assert(0);
+			//zrc_assert(0);
 		}
-		assert(isvalid(action[i]));
+		zrc_assert(isvalid(action[i]));
 	}
 	ai_t *ai = ZRC_GET(zrc, ai, id);
 	physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(ai && physics);
 	if (!physics || !ai) return;
 
 	int ap = 0;
@@ -184,6 +191,7 @@ void ai_act(zrc_t *zrc, id_t id, float *action) {
 		.turn = action[ap++]
 	};
 	ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
+#if 0
 	ability_id_t ability_id = ability_match(ai, &action[ap]);
 	ap += ABILITY_COUNT;
 	if (ability_id > ABILITY_NONE) {
@@ -199,8 +207,8 @@ void ai_act(zrc_t *zrc, id_t id, float *action) {
 			}
 			if (caster_ability_id != CASTER_ABILITY_INVALID) {
 				cpVect target_rel_scale_offset = cpv(action[ap++], action[ap++]);
-				cpVect target_scale_offset = cpvrotate(target_rel_scale_offset, cpvforangle(physics->angle));
-				cpVect target_offset = cpvmult(target_scale_offset, ability->range);
+				cpVect target_rel_offset = cpvmult(target_rel_scale_offset, ability->range);
+				cpVect target_offset = cpvrotate(target_rel_offset, cpvforangle(physics->angle));
 				cpVect target_point = cpvadd(physics->position, target_offset);
 				cast_t cast = {
 					.caster_ability = caster_ability_id,
@@ -217,7 +225,8 @@ void ai_act(zrc_t *zrc, id_t id, float *action) {
 			}
 		}
 	}
-	assert(ap <= AI_ACTION_LENGTH);
+#endif
+	zrc_assert(ap <= AI_ACTION_LENGTH);
 }
 
 

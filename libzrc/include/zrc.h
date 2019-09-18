@@ -16,6 +16,7 @@ extern "C" {
 #include <moving_average.h>
 #include <timer.h>
 #include <color.h>
+#include <assert.h>
 
 typedef uint16_t id_t;
 #define ID_INVALID ((id_t)-1)
@@ -33,6 +34,17 @@ typedef uint16_t id_t;
 #define MAP_SCALE 16
 
 #define randf() ((float)rand() / RAND_MAX)
+
+_ACRTIMP void __cdecl _wassert(
+	_In_z_ wchar_t const* _Message,
+	_In_z_ wchar_t const* _File,
+	_In_   unsigned       _Line
+);
+
+#define zrc_assert(expression) (void)(                                                       \
+            (!!(expression)) ||                                                              \
+            (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \
+        )
 
 typedef struct zrc zrc_t;
 
@@ -247,7 +259,6 @@ typedef struct seek {
 } seek_t;
 
 #define SENSE_MAX_ENTITIES 64
-#define SENSE_MASK_ENTITIES (SENSE_MAX_ENTITIES-1)
 typedef struct sense {
 	float range;
 
@@ -260,7 +271,7 @@ typedef struct relate_to {
 	float value;
 } relate_to_t;
 
-#define RELATE_MAX_TO 64
+#define RELATE_MAX_TO 1 // temp
 typedef struct relate {
 	relate_to_t to[RELATE_MAX_TO];
 	int num_relates;
@@ -274,7 +285,8 @@ typedef struct relationship {
 
 //#define AI_OBSERVATION_LENGTH 6144
 #define AI_OBSERVATION_LENGTH 1024
-#define AI_ACTION_LENGTH 13
+//#define AI_ACTION_LENGTH 13
+#define AI_ACTION_LENGTH 3
 
 typedef struct ai {
 	int train;
@@ -443,7 +455,7 @@ registry_t zrc_components(int count, ...);
 	} while (0)
 
 #define ZRC_SPAWN(zrc, name, id, value) do { \
-		assert(!ZRC_HAS(zrc, name, id)); \
+		zrc_assert(!ZRC_HAS(zrc, name, id)); \
 		*ZRC_GET_WRITE(zrc, registry, id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
 		*ZRC_GET_WRITE(zrc, name, id) = *(value); \
 	} while (0)

@@ -18,10 +18,16 @@ void physics_startup(zrc_t *zrc) {
 	zrc->collision_handler->separateFunc = physics_collision_separate;
 }
 static physics_deletebody(cpBody *body, void *data) {
+#if _DEBUG
+	puts("remove leftover body");
+#endif
 	cpSpaceRemoveBody(cpBodyGetSpace(body), body);
 	cpBodyFree(body);
 }
 static physics_deleteshape(cpShape *shape, void *data) {
+#if _DEBUG
+	puts("remove leftover shape");
+#endif
 	cpSpaceRemoveShape(cpShapeGetSpace(shape), shape);
 	cpShapeFree(shape);
 }
@@ -32,8 +38,8 @@ void physics_shutdown(zrc_t *zrc) {
 			physics_delete(zrc, i, physics);
 		}
 	}
-	//cpSpaceEachBody(zrc->space, physics_deletebody, 0);
-	//cpSpaceEachShape(zrc->space, physics_deleteshape, 0);
+	cpSpaceEachBody(zrc->space, physics_deletebody, 0);
+	cpSpaceEachShape(zrc->space, physics_deleteshape, 0);
 	cpSpaceFree(zrc->space);
 }
 

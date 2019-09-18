@@ -14,7 +14,7 @@ void physics_controller_shutdown(zrc_t *zrc) {
 }
 void physics_controller_create(zrc_t *zrc, id_t id, physics_controller_t *physics_controller) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(physics);
+	zrc_assert(physics);
 
 	physics_controller->body = cpBodyNew(1, 1);
 	cpBodySetPosition(physics_controller->body, cpBodyGetPosition(physics->body));

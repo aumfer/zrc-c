@@ -271,7 +271,7 @@ void draw_visual_destroy(draw_visual_t *draw_visual) {
 
 void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
 	float extra = (float)stm_sec(stm_since(zrc->timer.time));
-	//extra = 0; //debug
+	extra = 0; //debug
 
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {

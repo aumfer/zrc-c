@@ -1,5 +1,6 @@
 #include <zrc.h>
 #include <stdio.h>
+#include <string.h>
 
 void sense_startup(zrc_t *zrc) {
 	//printf("sense %zu\n", sizeof(zrc->sense));
@@ -8,7 +9,7 @@ void sense_shutdown(zrc_t *zrc) {
 
 }
 void sense_create(zrc_t *zrc, id_t id, sense_t *sense) {
-
+	memset(sense->entities, 0xffffffff, sizeof(sense->entities));
 }
 void sense_delete(zrc_t *zrc, id_t id, sense_t *sense) {
 
@@ -17,9 +18,11 @@ static void sense_bb_query(cpShape *shape, void *data) {
 	sense_t *sense = data;
 	id_t id = (id_t)cpShapeGetUserData(shape);
 	
-	assert(sense->num_entities < SENSE_MAX_ENTITIES);
-	sense->entities[sense->num_entities] = id;
-	sense->num_entities = ((sense->num_entities + 1)&SENSE_MASK_ENTITIES);
+	if (sense->num_entities < SENSE_MAX_ENTITIES) {
+		sense->entities[sense->num_entities++] = id;
+	} else {
+		puts("sense overflow");
+	}
 }
 void sense_update(zrc_t *zrc, id_t id, sense_t *sense) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);

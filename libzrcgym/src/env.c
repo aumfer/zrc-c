@@ -2,20 +2,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <zrc_draw.h>
+#include <tinycthread.h>
+
+#define SOKOL_IMPL
+#define SOKOL_NO_ENTRY
+//#define SOKOL_D3D11
+#define SOKOL_GLCORE33
+#include <sokol_app.h>
+#include <sokol_gfx.h>
 
 typedef struct env {
 	unsigned num_resets;
 	gym_t *gym;
+
+	zrc_draw_t *zrc_draw;
+	thrd_t draw_thrd;
+	mtx_t draw_mtx;
 } env_t;
 
 static int has_stm;
 
 env_t *env_create(void) {
+	printf("env_create %zu\n", sizeof(env_t));
 	env_t *env = calloc(1, sizeof(env_t));
+	mtx_init(&env->draw_mtx, mtx_plain);
 	return env;
 }
 void env_delete(env_t *env) {
-	gym_delete(env->gym);
+	puts("env_delete");
+	if (env->gym) {
+		gym_delete(env->gym);
+	}
+	mtx_destroy(&env->draw_mtx);
 	free(env);
 }
 
@@ -31,21 +50,30 @@ void env_reset(env_t *env, float *observation) {
 		stm_setup();
 		has_stm = 1;
 	}
+	mtx_lock(&env->draw_mtx);
+
 	++env->num_resets;
-	printf("env %u\n", env->num_resets);
+	printf("env_reset %u\n", env->num_resets);
+	srand((unsigned)(stm_now() & UINT32_MAX));
 	if (env->gym) {
 		gym_delete(env->gym);
 		free(env->gym);
 		env->gym = 0;
 	}
 	env->gym = calloc(1, sizeof(gym_t));
+	if (!env->gym) {
+		fputs("oom", stderr);
+	}
 	gym_create(env->gym);
 
+	// hack
 	for (int i = 0; i < 3; ++i) {
 		gym_update(env->gym);
 	}
 
 	ai_observe(&env->gym->zrc, env->gym->agent, 0, observation);
+
+	mtx_unlock(&env->draw_mtx);
 }
 
 void env_step(env_t *env, float *action, float *observation, float *reward, int *done) {
@@ -67,13 +95,76 @@ void env_step(env_t *env, float *action, float *observation, float *reward, int 
 			*reward += ai->reward;
 		} else {
 			*done = 1;
-			ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
-			printf("done %.2f\n", aip->total_reward);
-			return;
+			puts("done (dead)");
 		}
+	}
+
+	// 1 minute
+	if (zrc->frame > 60 / TICK_RATE) {
+		*done = 1;
+		puts("done (time)");
 	}
 
 	//printf("%u obs", zrc.frame);
 	ai_observe(zrc, agent, 0, observation);
 	//puts(" done");
+
+	if (*done) {
+		ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
+		printf("reward %.2f\n", aip->total_reward);
+	}
+}
+
+static void init(void *data) {
+	env_t *env = data;
+
+	zrc_draw_create(env->zrc_draw);
+}
+
+static void frame(void *data) {
+	env_t *env = data;
+
+	mtx_lock(&env->draw_mtx);
+	if (env->gym) {
+		env->zrc_draw->control.unit = env->gym->agent;
+		zrc_draw_frame(env->zrc_draw, &env->gym->zrc);
+	}
+	mtx_unlock(&env->draw_mtx);
+}
+
+static void cleanup(void *data) {
+	env_t *env = data;
+
+	zrc_draw_delete(env->zrc_draw);
+}
+
+static void event(const sapp_event *e, void *data) {
+	env_t *env = data;
+
+	ui_event_cb(e, &env->zrc_draw->ui);
+}
+
+static int draw(void *data) {
+	env_t *env = data;
+
+	sapp_run(&(sapp_desc) {
+		.user_data = env,
+		.init_userdata_cb = init,
+		.frame_userdata_cb = frame,
+		.cleanup_userdata_cb = cleanup,
+		.event_userdata_cb = event,
+		.width = 1920 / 2,
+		.height = 1080 / 2,
+		.sample_count = 4,
+		.window_title = "-= zen rat city =-",
+	});
+
+	return 0;
+}
+
+void env_render(env_t *env) {
+	if (!env->zrc_draw) {
+		env->zrc_draw = calloc(1, sizeof(zrc_draw_t));
+		thrd_create(&env->draw_thrd, draw, env);
+	}
 }

@@ -17,16 +17,17 @@ void contact_damage_delete(zrc_t *zrc, id_t id, contact_damage_t *contact_damage
 }
 void contact_damage_update(zrc_t *zrc, id_t id, contact_damage_t *contact_damage) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(physics);
+	zrc_assert(physics);
 	cpBodyEachArbiter(physics->body, contact_damage_update_arbiter, contact_damage);
 }
 
 static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void *data) {
+	cpSpace *space = cpBodyGetSpace(body);
+	zrc_t *zrc = (zrc_t *)cpSpaceGetUserData(space);
 	id_t id = (id_t)cpBodyGetUserData(body);
 	contact_damage_t *contact_damage = data;
 
 	contact_damage_flags_t flags = contact_damage->flags;
-	assert(flags & (CONTACT_DAMAGE_ONE_HIT | CONTACT_DAMAGE_DESPAWN_ON_HIT));
 	if ((flags & (CONTACT_DAMAGE_HAS_HIT | CONTACT_DAMAGE_ONE_HIT)) == (CONTACT_DAMAGE_HAS_HIT | CONTACT_DAMAGE_ONE_HIT)) {
 		return;
 	}
@@ -38,12 +39,23 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 	id_t id2 = (id_t)cpShapeGetUserData(s2);
 	id_t hit_id = id == id1 ? id2 : id1;
 
-	cpSpace *space = cpShapeGetSpace(s1);
-	zrc_t *zrc = cpSpaceGetUserData(space);
+	if (ZRC_HAS(zrc, contact_damage, hit_id)) {
+		// if we hit another contact damage
+		physics_t *physics = ZRC_GET(zrc, physics, id);
+		physics_t *hit_physics = ZRC_GET(zrc, physics, hit_id);
+		if (physics && hit_physics) {
+			float speed = cpvlengthsq(physics->velocity);
+			float hit_speed = cpvlengthsq(hit_physics->velocity);
+			if (speed < hit_speed) {
+				// fastest wins
+				return;
+			}
+		}
+	}
 
 	ZRC_SEND(zrc, damage, hit_id, &contact_damage->damage);
 
-	if (contact_damage->onhit_id != ID_INVALID) {
+	if ((flags & CONTACT_DAMAGE_HAS_HIT) == 0 && contact_damage->onhit_id != ID_INVALID) {
 		cpVect contact = cpArbiterGetPointA(arbiter, 0);
 		contact_damage->visual.position[0] = contact.x;
 		contact_damage->visual.position[1] = contact.y;

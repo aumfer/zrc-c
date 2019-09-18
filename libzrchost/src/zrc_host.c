@@ -129,8 +129,7 @@ static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id
 }
 
 void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
-	printf("zrc_host %zu\n", sizeof(zrc_host_t));
-	srand((unsigned)(stm_now() & UINT32_MAX));
+	//printf("zrc_host %zu\n", sizeof(zrc_host_t));
 
 	zrc->user = zrc_host;
 
@@ -147,14 +146,16 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 	zrc_host->status = TF_NewStatus();
 	zrc_host->graph = TF_NewGraph();
 
-	//TF_SessionOptions* session_options = TF_NewSessionOptions();
-	//zrc_host->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\aumfer\\zrc-learn\\", (char*[]) { "serve" }, 1, zrc_host->graph, 0, zrc_host->status);
-	//if (TF_GetCode(zrc_host->status) != TF_OK) {
-	//	const char *msg = TF_Message(zrc_host->status);
-	//	puts(msg);
-	//}
-	//TF_DeleteSessionOptions(session_options);
-
+#if 1
+	TF_SessionOptions* session_options = TF_NewSessionOptions();
+	zrc_host->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\aumfer\\zrc-learn\\", (char*[]) { "serve" }, 1, zrc_host->graph, 0, zrc_host->status);
+	if (TF_GetCode(zrc_host->status) != TF_OK) {
+		const char *msg = TF_Message(zrc_host->status);
+		puts(msg);
+		zrc_assert(0);
+	}
+	TF_DeleteSessionOptions(session_options);
+#else
 	TF_SessionOptions* session_options = TF_NewSessionOptions();
 	zrc_host->session = TF_NewSession(zrc_host->graph, session_options, zrc_host->status);
 	TF_DeleteSessionOptions(session_options);
@@ -166,7 +167,7 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 	void *buf = malloc(len);
 	fseek(f, 0, SEEK_SET);
 	size_t read = fread(buf, 1, len, f);
-	assert(read == len);
+	zrc_assert(read == len);
 	TF_Buffer* graph_def = TF_NewBufferFromString(buf, len);
 	free(buf);
 	fclose(f);
@@ -176,7 +177,8 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 		puts(msg);
 	}
 	TF_DeleteImportGraphDefOptions(import_options);
-#if _DEBUG
+#endif
+#if 0
 	size_t pos = 0;
 	TF_Operation *op;
 	while (op = TF_GraphNextOperation(zrc_host->graph, &pos)) {
@@ -250,13 +252,13 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		}
 	}
 	
-	if (1) {
+	if (0) {
 	//if ((zrc_host->frame & 3) == 0) {
 		for (int i = 0; i < MAX_ENTITIES; ++i) {
 			ai_t *ai = ZRC_GET(zrc, ai, i);
 			if (ai && !ai->train) {
 				for (int j = 0; j < 64; ++j) {
-					ai_observe(zrc, i, j, (float *)TF_TensorData(zrc_host->input_tensor)+(j*AI_OBSERVATION_LENGTH));
+					ai_observe(zrc, i, 0, (float *)TF_TensorData(zrc_host->input_tensor)+(j*AI_OBSERVATION_LENGTH));
 				}
 				TF_SessionRun(zrc_host->session, 0,
 					(TF_Output[]) { zrc_host->input },
@@ -268,7 +270,7 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 					const char *msg = TF_Message(zrc_host->status);
 					puts(msg);
 #endif
-					assert(0);
+					zrc_assert(0);
 				}
 				else {
 					ai_act(zrc, i, TF_TensorData(zrc_host->output_tensor));
@@ -301,8 +303,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 	demo_world->radiant = radiant;
 	demo_world->dire = dire;
 
-	printf("radiant %d\n", radiant);
-	printf("dire %d\n", dire);
+	//printf("radiant %d\n", radiant);
+	//printf("dire %d\n", dire);
 
 	ZRC_SPAWN(zrc, relate, radiant, &(relate_t){0});
 	ZRC_SPAWN(zrc, relate, dire, &(relate_t){0});
@@ -318,7 +320,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 	const float LARGE_SHIP = 12.5;
 	const float CAPITAL_SHIP = 50;
 	const int NUM_TEST_ENTITIES = 16;
-	const int WORLD_FACTOR = 16;
+	const int WORLD_FACTOR = 32;
 	for (int i = 0; i < NUM_TEST_ENTITIES; ++i) {
 		id_t id = zrc_host_put(zrc_host, guid_create());
 
@@ -415,6 +417,15 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		ZRC_SPAWN(zrc, ai, id, &(ai_t){
 			.train = !i
 		});
+
+		contact_damage_t contact_damage = {
+			.damage = {
+				.from = id,
+				.health = 10
+			},
+			.onhit_id = ID_INVALID
+		};
+		ZRC_SPAWN(zrc, contact_damage, id, &contact_damage);
 	}
 }
 void demo_world_delete(demo_world_t *demo_world) {

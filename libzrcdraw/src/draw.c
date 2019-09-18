@@ -27,7 +27,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	font_begin(&draw->font);
 
 	char fps[32];
-	sprintf_s(fps, sizeof(fps), "%.0ffps %0.0fms", 1.0 / draw->fps.avg, zrc->update_fps.avg * 1000);
+	sprintf_s(fps, sizeof(fps), "%.0ffps %0.0fms %.0f", 1.0 / draw->fps.avg, zrc->update_fps.avg * 1000, zrc->frame * TICK_RATE);
 	font_print(&draw->font, fps, (float[2]) { [0] = 10, [1] = 10 }, 0xff333333);
 	font_print(&draw->font, fps, (float[2]) { [0] = 11, [1] = 11 }, 0xffcccccc);
 
