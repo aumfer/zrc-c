@@ -15,6 +15,7 @@ env_t *env_create(void) {
 	return env;
 }
 void env_delete(env_t *env) {
+	gym_delete(env->gym);
 	free(env);
 }
 
