@@ -25,10 +25,14 @@ void ai_delete(zrc_t *zrc, id_t id, ai_t *ai) {
 void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	float next_reward = 0;
 
-	// give baseline reward [0,1] for being near entities
 	physics_t *physics = ZRC_GET(zrc, physics, id);
 	sense_t *sense = ZRC_GET(zrc, sense, id);
+	life_t *life = ZRC_GET(zrc, life, id);
+
+	// give baseline reward [0,1] for being near entities
 	if (physics && sense) {
+		// base-baseline reward toward (0,0) in case we can't see anyone
+		next_reward += (1 / cpvlengthsq(physics->position));
 		float sum_dist = 0;
 		int num_dist = 0;
 		for (int i = 0; i < sense->num_entities; ++i) {
@@ -57,23 +61,30 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 		next_reward += 100;
 	});
 
+	if (life) {
+		damage_t *damage;
+		ZRC_RECEIVE(zrc, damage, id, &ai->damage_taken_index, damage, {
+			next_reward -= damage->health * (1 / max(0.01f, life->health / life->max_health));
+		});
+	}
+
 	next_reward /= 1000;
 	ai->reward = next_reward;
 
 	ai->total_reward += ai->reward;
 }
-void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
-	const ai_t *ai = ZRC_GET(zrc, ai, id);
-	const physics_t *physics = ZRC_GET(zrc, physics, id);
-	const sense_t *sense = ZRC_GET(zrc, sense, id);
+void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
+	const ai_t *ai = ZRC_GET_PAST(zrc, ai, id, frame);
+	const physics_t *physics = ZRC_GET_PAST(zrc, physics, id, frame);
+	const sense_t *sense = ZRC_GET_PAST(zrc, sense, id, frame);
 	assert(ai && physics && sense);
 	int op = 0;
 
 	for (int i = 0; i < SENSE_MAX_ENTITIES; ++i) {
 		id_t sid = sense->entities[i];
-		const physics_t *sphysics = ZRC_GET_READ(zrc, physics, sid);
-		const caster_t *scaster = ZRC_GET_READ(zrc, caster, sid);
-		const life_t *slife = ZRC_GET_READ(zrc, life, sid);
+		const physics_t *sphysics = ZRC_GET_PAST(zrc, physics, sid, frame);
+		const caster_t *scaster = ZRC_GET_PAST(zrc, caster, sid, frame);
+		const life_t *slife = ZRC_GET_PAST(zrc, life, sid, frame);
 
 		float isme = id == sid ? 1.0f : 0.0f;
 		observation[op++] = isme;
@@ -100,6 +111,7 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 		observation[op++] = srel_scale_velocity.x;
 		observation[op++] = srel_scale_velocity.y;
 
+#if 0
 		for (int j = 0; j < CASTER_MAX_ABLITIES; ++j) {
 			const caster_ability_t *scaster_ability = &scaster->abilities[j];
 			const ability_t *sability = &zrc->ability[scaster_ability->ability];
@@ -112,6 +124,9 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 			float scaled_downtime = scaster_ability->downtime / max(1, sability->cooldown);
 			observation[op++] = scaled_downtime;
 			cpVect starget = cpv(scaster_ability->target.point[0], scaster_ability->target.point[1]);
+			// temp remove NaN
+			starget.x = isvalid(starget.x) ? starget.x : sphysics->position.x;
+			starget.y = isvalid(starget.y) ? starget.y : sphysics->position.y;
 			cpVect starget_offset = cpvsub(starget, physics->position);
 			cpVect starget_scale_offset = cpvmult(starget_offset, 1 / max(1, sense->range));
 			observation[op++] = starget_scale_offset.x;
@@ -127,6 +142,7 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 			float is_cast = (scaster_ability->cast_flags & CAST_ISCAST) == CAST_ISCAST ? 1.0f : 0.0f;
 			observation[op++] = is_cast;
 		}
+#endif
 
 		float healthpct = slife->health / max(1, slife->max_health);
 		observation[op++] = healthpct;
@@ -136,11 +152,27 @@ void ai_observe(const zrc_t *zrc, id_t id, float *observation) {
 		observation[op++] = ragepct;
 	}
 	assert(op == AI_OBSERVATION_LENGTH);
+#if 0
+	for (int i = 0; i < AI_OBSERVATION_LENGTH; ++i) {
+		if (!isvalid(observation[i])) {
+			observation[i] = 0;
+			assert(0);
+		}
+		assert(isvalid(observation[i]));
+	}
+#endif
 }
 
 static unsigned has_cast[ABILITY_COUNT];
 
 void ai_act(zrc_t *zrc, id_t id, float *action) {
+	for (int i = 0; i < AI_ACTION_LENGTH; ++i) {
+		if (!isvalid(action[i])) {
+			action[i] = 0;
+			//assert(0);
+		}
+		assert(isvalid(action[i]));
+	}
 	ai_t *ai = ZRC_GET(zrc, ai, id);
 	physics_t *physics = ZRC_GET(zrc, physics, id);
 	assert(ai && physics);

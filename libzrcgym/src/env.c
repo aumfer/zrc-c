@@ -1,8 +1,22 @@
 #include <env.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
-static unsigned num_resets = 0;
-static gym_t *gym;
+typedef struct env {
+	unsigned num_resets;
+	gym_t *gym;
+} env_t;
+
+static int has_stm;
+
+env_t *env_create(void) {
+	env_t *env = calloc(1, sizeof(env_t));
+	return env;
+}
+void env_delete(env_t *env) {
+	free(env);
+}
 
 int env_observation_length(void) {
 	return AI_OBSERVATION_LENGTH;
@@ -11,50 +25,54 @@ int env_action_length(void) {
 	return AI_ACTION_LENGTH;
 }
 
-void env_reset(float *observation) {
-	if (!num_resets) {
+void env_reset(env_t *env, float *observation) {
+	if (!has_stm) {
 		stm_setup();
+		has_stm = 1;
 	}
-	++num_resets;
-	printf("env %u\n", num_resets);
-	if (gym) {
-		gym_delete(gym);
-		free(gym);
-		gym = 0;
+	++env->num_resets;
+	printf("env %u\n", env->num_resets);
+	if (env->gym) {
+		gym_delete(env->gym);
+		free(env->gym);
+		env->gym = 0;
 	}
-	gym = calloc(1, sizeof(gym_t));
-	gym_create(gym);
+	env->gym = calloc(1, sizeof(gym_t));
+	gym_create(env->gym);
 
 	for (int i = 0; i < 3; ++i) {
-		gym_update(gym);
+		gym_update(env->gym);
 	}
 
-	ai_observe(&gym->zrc, gym->agent, observation);
+	ai_observe(&env->gym->zrc, env->gym->agent, 0, observation);
 }
 
-void env_step(float *action, float *observation, float *reward, int *done) {
-	if (!gym) return;
+void env_step(env_t *env, float *action, float *observation, float *reward, int *done) {
+	if (!env->gym) return;
+	gym_t *gym = env->gym;
+	zrc_t *zrc = &env->gym->zrc;
+	id_t agent = env->gym->agent;
 
 	for (int i = 0; i < 3; ++i) {
-		//printf("%u act", gym->zrc.frame);
-		ai_act(&gym->zrc, gym->agent, action);
+		//printf("%u act", zrc.frame);
+		ai_act(zrc, agent, action);
 		//puts(" done");
-		//printf("%u update", gym->zrc.frame);
+		//printf("%u update", zrc.frame);
 		gym_update(gym);
 		//puts(" done");
 
-		ai_t *ai = ZRC_GET(&gym->zrc, ai, gym->agent);
+		ai_t *ai = ZRC_GET(zrc, ai, agent);
 		if (ai) {
 			*reward += ai->reward;
 		} else {
 			*done = 1;
-			ai_t *aip = ZRC_GET_PREV(&gym->zrc, ai, gym->agent);
+			ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
 			printf("done %.2f\n", aip->total_reward);
 			return;
 		}
 	}
 
-	//printf("%u obs", gym->zrc.frame);
-	ai_observe(&gym->zrc, gym->agent, observation);
+	//printf("%u obs", zrc.frame);
+	ai_observe(zrc, agent, 0, observation);
 	//puts(" done");
 }

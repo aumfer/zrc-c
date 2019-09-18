@@ -37,11 +37,6 @@ static int thread(void *_) {
 	for (;;) {
 		zrc_tick(zrc);
 		zrc_host_tick(&zrc_host, zrc);
-		
-		if (ZRC_HAS(zrc, ai, zrc_host.demo_world.player)) {
-			float obs[16384];
-			ai_observe(zrc, zrc_host.demo_world.player, obs);
-		}
 
 		thrd_yield();
 	}

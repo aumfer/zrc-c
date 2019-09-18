@@ -272,7 +272,8 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
-#define AI_OBSERVATION_LENGTH 6144
+//#define AI_OBSERVATION_LENGTH 6144
+#define AI_OBSERVATION_LENGTH 1024
 #define AI_ACTION_LENGTH 13
 
 typedef struct ai {
@@ -282,6 +283,7 @@ typedef struct ai {
 
 	unsigned damage_dealt_index;
 	unsigned got_kill_index;
+	unsigned damage_taken_index;
 } ai_t;
 
 #define MAX_RELATE_CHANGES MAX_ENTITIES
@@ -556,7 +558,7 @@ void ai_shutdown(zrc_t *);
 void ai_create(zrc_t *, id_t, ai_t *);
 void ai_delete(zrc_t *, id_t, ai_t *);
 void ai_update(zrc_t *, id_t, ai_t *);
-void ai_observe(const zrc_t *, id_t id, float *numpyarray);
+void ai_observe(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
 void ai_act(zrc_t *, id_t id, float *numpyarray);
 
 
