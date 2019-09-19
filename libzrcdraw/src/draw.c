@@ -1,5 +1,6 @@
 #include <draw.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 void draw_create(draw_t *draw) {
 	sg_setup(&(sg_desc) {
@@ -66,12 +67,16 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		}
 
 		if (control->target != control->unit) {
-			float my_relation = relate_to_query(zrc, control->unit, control->target);
-			float their_relation = relate_to_query(zrc, control->target, control->unit);
-			char rel[32];
-			sprintf_s(rel, sizeof(rel), "rel: %.0f %.0f", my_relation, their_relation);
-			font_print(&draw->font, rel, (float[2]) { [0] = 10, [1] = 130 }, 0xff333333);
-			font_print(&draw->font, rel, (float[2]) { [0] = 11, [1] = 131 }, 0xffcccccc);
+			//float my_relation = relate_to_query(zrc, control->unit, control->target);
+			//float their_relation = relate_to_query(zrc, control->target, control->unit);
+			team_t *my_team = ZRC_GET(zrc, team, control->unit);
+			team_t *their_team = ZRC_GET(zrc, team, control->target);
+			if (my_team && their_team) {
+				char rel[32];
+				sprintf_s(rel, sizeof(rel), "rel: %d %d", *my_team, *their_team);
+				font_print(&draw->font, rel, (float[2]) { [0] = 10, [1] = 130 }, 0xff333333);
+				font_print(&draw->font, rel, (float[2]) { [0] = 11, [1] = 131 }, 0xffcccccc);
+			}
 		}
 	}
 
@@ -98,9 +103,10 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 100.0f, [1] = sapp_height() - 21.0f - (20*i) }, 0xffcccccc);
 	}
 
+	float extra = draw->not_real_time ? 0 : (float)stm_sec(stm_since(zrc->timer.time));
 	draw_world_frame(&draw->draw_world, camera);
 	draw_locomotion_frame(&draw->draw_locomotion, zrc, camera, control, dt);
-	draw_visual_frame(&draw->draw_visual, zrc, camera, control, dt);
+	draw_visual_frame(&draw->draw_visual, zrc, camera, control, dt, extra);
 
 	font_end(&draw->font);
 	font_draw(&draw->font);

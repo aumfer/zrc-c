@@ -49,7 +49,9 @@ static void init(void) {
 }
 
 static void frame(void) {
-	zrc_draw_frame(&zrc_draw, &zrc);
+	if (zrc.timer.time > 0) {
+		zrc_draw_frame(&zrc_draw, &zrc);
+	}
 }
 
 static void cleanup(void) {

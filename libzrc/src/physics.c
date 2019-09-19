@@ -165,7 +165,7 @@ static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat dampin
 
 	cpSpace *space = cpBodyGetSpace(body);
 	zrc_t *zrc = cpSpaceGetUserData(space);
-	physics_t *physics = ZRC_GET(zrc, physics, id);
+	physics_t *physics = ZRC_GET_WRITE(zrc, physics, id);
 
 	cpBodyUpdateVelocity(body, gravity, 1 - physics->damping, dt);
 

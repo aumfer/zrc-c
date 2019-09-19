@@ -19,7 +19,7 @@ registry_t zrc_components(int count, ...) {
 }
 
 void zrc_startup(zrc_t *zrc) {
-	//printf("zrc %zu\n", sizeof(zrc_t));
+	printf("zrc %zu\n", sizeof(zrc_t));
 
 	registry_startup(zrc);
 	flight_startup(zrc);
@@ -133,7 +133,8 @@ void zrc_update(zrc_t *zrc) {
 	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, sense);
 	//printf(".%d", i++);
-	ZRC_UPDATE0(zrc, relate);
+	//ZRC_UPDATE0(zrc, relate);
+	ZRC_UPDATE0(zrc, team);
 	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, ai);
 	//puts(".done");
@@ -171,6 +172,8 @@ void relate_startup(zrc_t *zrc) {
 void relate_shutdown(zrc_t *zrc) {
 
 }
+void team_update(zrc_t *zrc) {}
+#if 0
 static int relate_to_min(relate_t *relate) {
 	int min = -1;
 	float minv;
@@ -294,3 +297,4 @@ float relate_to_query(zrc_t *zrc, id_t a, id_t b) {
 	//float flow2 = ff_eka(zrc, b, a);
 	return flow1;
 }
+#endif

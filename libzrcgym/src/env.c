@@ -25,6 +25,10 @@ static int has_stm;
 
 env_t *env_create(void) {
 	printf("env_create %zu\n", sizeof(env_t));
+	if (!has_stm) {
+		stm_setup();
+		has_stm = 1;
+	}
 	env_t *env = calloc(1, sizeof(env_t));
 	mtx_init(&env->draw_mtx, mtx_plain);
 	return env;
@@ -46,10 +50,6 @@ int env_action_length(void) {
 }
 
 void env_reset(env_t *env, float *observation) {
-	if (!has_stm) {
-		stm_setup();
-		has_stm = 1;
-	}
 	mtx_lock(&env->draw_mtx);
 
 	++env->num_resets;
@@ -120,6 +120,7 @@ static void init(void *data) {
 
 	zrc_draw_create(env->zrc_draw);
 	env->zrc_draw->control.fixed_camera = 1;
+	env->zrc_draw->draw.not_real_time = 1;
 }
 
 static void frame(void *data) {

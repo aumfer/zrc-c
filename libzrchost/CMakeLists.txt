@@ -1,4 +1,6 @@
 add_library(libzrchost
+    include/tf_brain.h
+    src/tf_brain.c
     include/zrc_host.h
     src/zrc_host.c
 )

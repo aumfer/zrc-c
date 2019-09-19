@@ -52,6 +52,6 @@ typedef struct draw_visual {
 void draw_visual_create(draw_visual_t *);
 void draw_visual_destroy(draw_visual_t *);
 
-void draw_visual_frame(draw_visual_t *, zrc_t *, const camera_t *, const control_t *, float dt);
+void draw_visual_frame(draw_visual_t *, zrc_t *, const camera_t *, const control_t *, float dt, float extra);
 
 #endif

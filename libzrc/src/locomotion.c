@@ -14,12 +14,14 @@ void locomotion_delete(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 
 }
 static const float THRUSTS[] = {
-	//+0.25f,
-	//+0.5f,
+	+0.1f,
+	+0.25f,
+	+0.5f,
 	+1,
 	-1,
-	//-0.5f,
-	//-0.25f,
+	-0.5f,
+	-0.25f,
+	-0.1f,
 	0
 };
 #define NUM_THRUSTS _countof(THRUSTS)
@@ -60,18 +62,20 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	int num_behavior_samples = 0;
 	for (int i = 0; i < NUM_THRUSTS; ++i) {
 		for (int j = 0; j < NUM_TURNS; ++j) {
-			float turn = flight->max_turn * TURNS[j] * TICK_RATE;
-			float angle = physics->angle + turn;
-			float move = flight->max_thrust * THRUSTS[i] * TICK_RATE;
-			cpVect position = cpvadd(physics->position, cpvrotate(cpv(move, 0), cpvforangle(angle)));
+			float turn = physics->max_spin * TURNS[j] * TICK_RATE;
+			float angle = physics->angle + physics->angular_velocity * TICK_RATE;
+			float test_angle = angle + turn;
+			float move = physics->max_speed * THRUSTS[i] * TICK_RATE;
+			cpVect position = cpvadd(physics->position, cpvmult(physics->velocity, TICK_RATE));
+			cpVect test_position = cpvadd(position, cpvrotate(cpv(move, 0), cpvforangle(test_angle)));
 
-			positions[i][j] = position;
-			angles[i][j] = angle;
+			positions[i][j] = test_position;
+			angles[i][j] = test_angle;
 
 			double potential = 0;
 			for (int i = 0; i < locomotion->num_behaviors; ++i) {
 				locomotion_behavior_t *locomotion_behavior = &locomotion->behaviors[i];
-				potential += (*locomotion_behavior)(zrc, id, position);
+				potential += (*locomotion_behavior)(zrc, id, test_position);
 			}
 			potentials[i][j] = potential;
 		}

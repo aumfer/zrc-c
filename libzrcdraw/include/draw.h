@@ -14,6 +14,8 @@ typedef struct draw {
 	draw_world_t draw_world;
 	font_t font;
 	draw_locomotion_t draw_locomotion;
+
+	int not_real_time;
 } draw_t;
 
 void draw_create(draw_t *);

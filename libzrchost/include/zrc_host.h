@@ -3,24 +3,23 @@
 #include <zrc.h>
 #include <khash.h>
 #include <guid.h>
-#include <tensorflow/c/c_api.h>
+#include <tf_brain.h>
 
 KHASH_INIT(ehash, guid_t, char, 0, guid_hash_func, guid_eq_func)
 
+#define TEAM_RADIANT 1
+#define TEAM_DIRE 2
+#define TEAM_OTHER 4
+
 typedef struct demo_world {
-	id_t radiant, dire, player;
+	id_t player;
 } demo_world_t;
 
 typedef struct zrc_host {
 	khash_t(ehash) *entities;
 	demo_world_t demo_world; // todo move
 
-	TF_Status* status;
-	TF_Graph* graph;
-	TF_Session* session;
-	TF_Output input, output;
-	TF_Tensor *input_tensor;
-	TF_Tensor *output_tensor;
+	tf_brain_t tf_brain;
 
 	timer_t timer;
 	moving_average_t tick_fps;

@@ -1,5 +1,6 @@
 #include <zrc_host.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 static void cast_tur_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caster_id, const ability_target_t *target) {
 	zrc_host_t *zrc_host = zrc->user;
@@ -143,85 +144,12 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 
 	demo_world_create(&zrc_host->demo_world, zrc_host, zrc);
 
-	zrc_host->status = TF_NewStatus();
-	zrc_host->graph = TF_NewGraph();
-
-#if 1
-	TF_SessionOptions* session_options = TF_NewSessionOptions();
-	zrc_host->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\aumfer\\zrc-learn\\", (char*[]) { "serve" }, 1, zrc_host->graph, 0, zrc_host->status);
-	if (TF_GetCode(zrc_host->status) != TF_OK) {
-		const char *msg = TF_Message(zrc_host->status);
-		puts(msg);
-		zrc_assert(0);
-	}
-	TF_DeleteSessionOptions(session_options);
-#else
-	TF_SessionOptions* session_options = TF_NewSessionOptions();
-	zrc_host->session = TF_NewSession(zrc_host->graph, session_options, zrc_host->status);
-	TF_DeleteSessionOptions(session_options);
-	TF_ImportGraphDefOptions* import_options = TF_NewImportGraphDefOptions();
-	FILE *f = fopen("C:\\GitHub\\aumfer\\zrc-learn\\test.pb", "rb");
-	printf("%d", errno);
-	fseek(f, 0, SEEK_END);
-	int len = ftell(f);
-	void *buf = malloc(len);
-	fseek(f, 0, SEEK_SET);
-	size_t read = fread(buf, 1, len, f);
-	zrc_assert(read == len);
-	TF_Buffer* graph_def = TF_NewBufferFromString(buf, len);
-	free(buf);
-	fclose(f);
-	TF_GraphImportGraphDef(zrc_host->graph, graph_def, import_options, zrc_host->status);
-	if (TF_GetCode(zrc_host->status) != TF_OK) {
-		const char *msg = TF_Message(zrc_host->status);
-		puts(msg);
-	}
-	TF_DeleteImportGraphDefOptions(import_options);
-#endif
-#if 0
-	size_t pos = 0;
-	TF_Operation *op;
-	while (op = TF_GraphNextOperation(zrc_host->graph, &pos)) {
-		const char *name = TF_OperationName(op);
-		const char *type = TF_OperationOpType(op);
-		int num_inputs = TF_OperationNumInputs(op);
-		int num_outputs = TF_OperationNumOutputs(op);
-		printf("%s %s %dx%d\n", name, type, num_inputs, num_outputs);
-	}
-#endif
-	zrc_host->input.oper = TF_GraphOperationByName(zrc_host->graph, "input/Ob");
-	zrc_host->input.index = 0;
-	zrc_host->output.oper = TF_GraphOperationByName(zrc_host->graph, "output/add");
-	//zrc_host->output.oper = TF_GraphOperationByName(zrc_host->graph, "model/split");
-	//zrc_host->output.oper = TF_GraphOperationByName(zrc_host->graph, "model/Exp");
-	//zrc_host->output.oper = TF_GraphOperationByName(zrc_host->graph, "output/strided_slice_1");
-	zrc_host->output.index = 0;
-	zrc_host->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]){ 64, AI_OBSERVATION_LENGTH }, 2, 64 * AI_OBSERVATION_LENGTH * sizeof(float));
-	zrc_host->output_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { AI_ACTION_LENGTH }, 1, AI_ACTION_LENGTH * sizeof(float));
-
-	//TF_Operation *init_op = TF_GraphOperationByName(zrc_host->graph, "init");
-	//TF_SessionRun(zrc_host->session, NULL,
-	//	/* No inputs */
-	//	NULL, NULL, 0,
-	//	/* No outputs */
-	//	NULL, NULL, 0,
-	//	/* Just the init operation */
-	//	(TF_Operation*[]){init_op}, 1,
-	//	/* No metadata */
-	//	NULL, zrc_host->status);
-	//if (TF_GetCode(zrc_host->status) != TF_OK) {
-	//	const char *msg = TF_Message(zrc_host->status);
-	//	puts(msg);
-	//}
+	tf_brain_create(&zrc_host->tf_brain);
 
 	timer_create(&zrc_host->timer);
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
-	TF_DeleteTensor(zrc_host->output_tensor);
-	TF_DeleteTensor(zrc_host->input_tensor);
-	TF_DeleteSession(zrc_host->session, zrc_host->status);
-	TF_DeleteGraph(zrc_host->graph);
-	TF_DeleteStatus(zrc_host->status);
+	tf_brain_delete(&zrc_host->tf_brain);
 	kh_destroy(ehash, zrc_host->entities);
 }
 
@@ -252,31 +180,7 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		}
 	}
 	
-	if (1) {
-	//if ((zrc_host->frame & 3) == 0) {
-		for (int i = 0; i < MAX_ENTITIES; ++i) {
-			ai_t *ai = ZRC_GET(zrc, ai, i);
-			if (ai && !ai->train) {
-				for (int j = 0; j < 64; ++j) {
-					ai_observe(zrc, i, 0, (float *)TF_TensorData(zrc_host->input_tensor)+(j*AI_OBSERVATION_LENGTH));
-				}
-				TF_SessionRun(zrc_host->session, 0,
-					(TF_Output[]) { zrc_host->input },
-					(TF_Tensor*[]) { zrc_host->input_tensor }, 1,
-					(TF_Output[]) { zrc_host->output }, (TF_Tensor*[]) { zrc_host->output_tensor }, 1,
-					0, 0, 0, zrc_host->status);
-				if (TF_GetCode(zrc_host->status) != TF_OK) {
-#if _DEBUG
-					const char *msg = TF_Message(zrc_host->status);
-					puts(msg);
-#endif
-				}
-				else {
-					ai_act(zrc, i, TF_TensorData(zrc_host->output_tensor));
-				}
-			}
-		}
-	}
+	//tf_brain_update(&zrc_host->tf_brain, zrc);
 }
 
 id_t zrc_host_put(zrc_host_t *zrc_host, guid_t guid) {
@@ -295,25 +199,6 @@ id_t zrc_host_get(const zrc_host_t *zrc_host, guid_t guid) {
 }
 
 void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zrc) {
-	id_t radiant = zrc_host_put(zrc_host, guid_create());
-	id_t dire = zrc_host_put(zrc_host, guid_create());
-	//id_t other = zrc_host_put(&zrc_host, guid_create());
-
-	demo_world->radiant = radiant;
-	demo_world->dire = dire;
-
-	//printf("radiant %d\n", radiant);
-	//printf("dire %d\n", dire);
-
-	ZRC_SPAWN(zrc, relate, radiant, &(relate_t){0});
-	ZRC_SPAWN(zrc, relate, dire, &(relate_t){0});
-
-	zrc->relate_change[zrc->num_relate_changes++] = (relationship_t) {
-		.from = dire,
-			.to = radiant,
-			.amount = -10
-	};
-
 	const float SMALL_SHIP = 2.5f;
 	const float MEDIUM_SHIP = 5;
 	const float LARGE_SHIP = 12.5;
@@ -323,25 +208,24 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 	for (int i = 0; i < NUM_TEST_ENTITIES; ++i) {
 		id_t id = zrc_host_put(zrc_host, guid_create());
 
-		id_t faction;
+		team_t faction;
 		if (randf() > 0.5) {
 			if (randf() > 0.5) {
-				faction = radiant;
+				faction = TEAM_RADIANT;
 			}
 			else {
-				//faction = other;
-				faction = radiant;
+				faction = TEAM_OTHER;
 			}
 		}
 		else {
 			if (randf() > 0.5) {
-				faction = dire;
+				faction = TEAM_DIRE;
 			}
 			else {
-				//faction = other;
-				faction = dire;
+				faction = TEAM_OTHER;
 			}
 		}
+		faction = !i ? TEAM_RADIANT : TEAM_DIRE;
 
 		physics_t physics = {
 			//.type = i && (randf() > 0.5) ? CP_BODY_TYPE_STATIC : CP_BODY_TYPE_DYNAMIC,
@@ -368,7 +252,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		}
 		ZRC_SPAWN(zrc, visual, id, &(visual_t) {
 			//.color = color_random(255)
-			.color = faction == radiant ? 0xff0000ff : (faction == dire ? 0xff00ff00 : 0xffff0000)
+			.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
 		});
 		flight_t flight = {
 			.max_thrust = 15000,
@@ -402,16 +286,11 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		ZRC_SPAWN(zrc, sense, id, &(sense_t) {
 			.range = 250
 		});
+
 		if (!i) {
 			printf("player %d team %d\n", id, faction);
 		}
-		ZRC_SPAWN(zrc, relate, id, &(relate_t){0});
-
-		zrc->relate_change[zrc->num_relate_changes++] = (relationship_t) {
-			.from = faction,
-				.to = id,
-				.amount = 1
-		};
+		ZRC_SPAWN(zrc, team, id, &faction);
 
 		ZRC_SPAWN(zrc, ai, id, &(ai_t){
 			.train = !i

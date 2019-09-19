@@ -28,8 +28,9 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
 	sense_t *sense = ZRC_GET(zrc, sense, id);
 	life_t *life = ZRC_GET(zrc, life, id);
+	team_t *team = ZRC_GET(zrc, team, id);
 
-#if 1
+#if 0
 	// give baseline reward [0,1] for being near entities
 	if (physics && sense) {
 		// base-baseline reward toward (0,0) in case we can't see anyone
@@ -52,12 +53,27 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	// reward for damage dealt
 	damage_dealt_t *damage_dealt;
 	ZRC_RECEIVE(zrc, damage_dealt, id, &ai->damage_dealt_index, damage_dealt, {
-		next_reward += damage_dealt->health;
+		team_t *tteam = ZRC_GET(zrc, team, damage_dealt->to);
+		if (team && tteam) {
+			if (*tteam != *team) {
+				next_reward += damage_dealt->health;
+			} else {
+				next_reward -= damage_dealt->health;
+			}
+		}
 	});
 
 	id_t *killed;
 	ZRC_RECEIVE(zrc, got_kill, id, &ai->got_kill_index, killed, {
-		next_reward += 10000;
+		team_t *tteam = ZRC_GET(zrc, team, *killed);
+		if (team && tteam) {
+			printf("%d killed %d\n", *team, *tteam);
+			if (*tteam != *team) {
+				next_reward += 1000;
+			} else {
+				next_reward -= 1000;
+			}
+		}
 	});
 
 	if (life) {
@@ -72,10 +88,12 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 
 	ai->total_reward += ai->reward;
 }
+
 void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 	const ai_t *ai = ZRC_GET_PAST(zrc, ai, id, frame);
 	const physics_t *physics = ZRC_GET_PAST(zrc, physics, id, frame);
 	const sense_t *sense = ZRC_GET_PAST(zrc, sense, id, frame);
+	const team_t *team = ZRC_GET_PAST(zrc, team, id, frame);
 	zrc_assert(ai && physics && sense);
 	int op = 0;
 
@@ -86,16 +104,29 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 		const physics_t *sphysics = ZRC_GET_PAST(zrc, physics, sid, frame);
 		const caster_t *scaster = ZRC_GET_PAST(zrc, caster, sid, frame);
 		const life_t *slife = ZRC_GET_PAST(zrc, life, sid, frame);
+		const team_t *steam = ZRC_GET_PAST(zrc, team, sid, frame);
 
 		//if (sid == id) continue;
 
 		float isme = id == sid ? 1.0f : 0.0f;
 		observation[op++] = isme;
+		float myteam = *team == *steam ? 1.0f : 0.0f;
+		observation[op++] = myteam;
 		if (ZRC_HAD_PAST(zrc, physics, sid, frame)) {
 			cpVect sfront = cpvforangle(sphysics->angle);
 
 			float sradius = sphysics->radius / MAP_SCALE;
 			observation[op++] = sradius;
+
+			//observation[op++] = sphysics->position.x / MAP_SCALE;
+			//observation[op++] = sphysics->position.y / MAP_SCALE;
+			//observation[op++] = 0;
+			//observation[op++] = fmodf(sphysics->angle, (CP_PI * 2));
+			//observation[op++] = sphysics->velocity.x / sphysics->max_speed;
+			//observation[op++] = sphysics->velocity.y / sphysics->max_speed;
+			//observation[op++] = 0;
+			//observation[op++] = 0;
+
 			cpVect soffset = cpvsub(sphysics->position, physics->position);
 			cpVect sscale_offset = cpvmult(soffset, 1 / sense->range);
 			cpVect srel_scale_offset = cpvrotate(sscale_offset, front);

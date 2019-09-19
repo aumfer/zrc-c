@@ -22,13 +22,13 @@ extern "C" {
 typedef uint16_t id_t;
 #define ID_INVALID ((id_t)-1)
 
-#define MAX_ENTITIES 16384
+#define MAX_ENTITIES (16384/2)
 #define MASK_ENTITIES (MAX_ENTITIES-1)
-#define MAX_FRAMES 64
+#define MAX_FRAMES (64/2)
 #define MASK_FRAMES (MAX_FRAMES-1)
 
 // todo use per-type message counts to save space
-#define MAX_MESSAGES 64
+#define MAX_MESSAGES (64/2)
 #define MASK_MESSAGES (MAX_MESSAGES-1)
 
 #define TICK_RATE (1.0f/60.0f)
@@ -53,7 +53,8 @@ typedef enum zrc_component {
 	zrc_locomotion,
 	zrc_seek,
 	zrc_sense,
-	zrc_relate,
+	//zrc_relate,
+	zrc_team,
 	zrc_ai,
 	zrc_component_count
 } zrc_component_t;
@@ -276,12 +277,15 @@ typedef struct relationship {
 } relationship_t;
 
 //#define AI_OBSERVATION_LENGTH 6144
-#define AI_OBSERVATION_LENGTH 640
+#define AI_OBSERVATION_LENGTH 704
 //#define AI_ACTION_LENGTH 13
 #define AI_ACTION_LENGTH 3
 
+static_assert((AI_OBSERVATION_LENGTH % SENSE_MAX_ENTITIES) == 0, "invalid AI_OBSERVATION_LENGTH");
+
 typedef struct ai {
 	int train;
+
 	float total_reward;
 	float reward;
 
@@ -290,7 +294,7 @@ typedef struct ai {
 	unsigned damage_taken_index;
 } ai_t;
 
-#define MAX_RELATE_CHANGES MAX_ENTITIES
+typedef uint32_t team_t;
 
 typedef struct zrc {
 	// static
@@ -309,8 +313,9 @@ typedef struct zrc {
 	locomotion_t locomotion[MAX_FRAMES][MAX_ENTITIES];
 	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
 	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
-	relate_t relate[MAX_FRAMES][MAX_ENTITIES];
+	//relate_t relate[MAX_FRAMES][MAX_ENTITIES];
 	ai_t ai[MAX_FRAMES][MAX_ENTITIES];
+	team_t team[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient // todo volatile?
 	unsigned num_damage[MAX_ENTITIES];
@@ -343,9 +348,9 @@ typedef struct zrc {
 	cpSpace *space;
 	cpCollisionHandler *collision_handler;
 
-	int num_relate_changes;
-	relationship_t relate_change[MAX_RELATE_CHANGES];
-	relate_t relate_query[MAX_ENTITIES];
+	//int num_relate_changes;
+	//relationship_t relate_change[MAX_MESSAGES];
+	//relate_t relate_query[MAX_ENTITIES];
 } zrc_t;
 
 registry_t zrc_components(int count, ...);
@@ -556,6 +561,7 @@ void relate_startup(zrc_t *);
 void relate_shutdown(zrc_t *);
 void relate_update(zrc_t *);
 float relate_to_query(zrc_t *, id_t, id_t);
+void team_update(zrc_t*);
 
 void ai_startup(zrc_t *);
 void ai_shutdown(zrc_t *);

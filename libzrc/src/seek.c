@@ -16,7 +16,9 @@ void seek_delete(zrc_t *zrc, id_t id, seek_t *seek) {
 static double seek_locomotion_behavior(const zrc_t *zrc, id_t id, cpVect point) {
 	const seek_t *seek = ZRC_GET(zrc, seek, id);
 	float distance = cpvdistsq(seek->point, point);
-	return 1.0 / (1 + distance);
+	const physics_t *physics = ZRC_GET(zrc, physics, id);
+	float min_distance = physics ? (physics->radius*physics->radius) : 0;
+	return 1.0 / (1 + max(min_distance, distance));
 }
 void seek_update(zrc_t *zrc, id_t id, seek_t *seek) {
 	seek_to_t *seek_to;
