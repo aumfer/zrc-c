@@ -277,17 +277,21 @@ typedef struct relationship {
 } relationship_t;
 
 //#define AI_OBSERVATION_LENGTH 6144
-#define AI_OBSERVATION_LENGTH 704
+#define AI_OBSERVATION_LENGTH 32
 //#define AI_ACTION_LENGTH 13
 #define AI_ACTION_LENGTH 3
 
-static_assert((AI_OBSERVATION_LENGTH % SENSE_MAX_ENTITIES) == 0, "invalid AI_OBSERVATION_LENGTH");
+//static_assert((AI_OBSERVATION_LENGTH % SENSE_MAX_ENTITIES) == 0, "invalid AI_OBSERVATION_LENGTH");
 
 typedef struct ai {
 	int train;
 
 	float total_reward;
 	float reward;
+
+	int done;
+	cpVect goalp;
+	float goala;
 
 	unsigned damage_dealt_index;
 	unsigned got_kill_index;
@@ -452,9 +456,10 @@ registry_t zrc_components(int count, ...);
 	} while (0)
 
 #define ZRC_SPAWN(zrc, name, id, value) do { \
-		zrc_assert(!ZRC_HAS(zrc, name, id)); \
-		*ZRC_GET_WRITE(zrc, registry, id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
-		*ZRC_GET_WRITE(zrc, name, id) = *(value); \
+		id_t _id = (id); \
+		zrc_assert(!ZRC_HAS(zrc, name, _id)); \
+		*ZRC_GET_WRITE(zrc, registry, _id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
+		*ZRC_GET_WRITE(zrc, name, _id) = *(value); \
 	} while (0)
 
 #define ZRC_DESPAWN(zrc, name, id) (*ZRC_GET_WRITE(zrc, registry, id) &= ~(1<<zrc_##name##))

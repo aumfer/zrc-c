@@ -81,8 +81,10 @@ void env_step(env_t *env, float *action, float *observation, float *reward, int 
 	gym_t *gym = env->gym;
 	zrc_t *zrc = &env->gym->zrc;
 	id_t agent = env->gym->agent;
+	
+	float t = zrc->frame * TICK_RATE;
 
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < 1; ++i) {
 		//printf("%u act", zrc.frame);
 		ai_act(zrc, agent, action);
 		//puts(" done");
@@ -93,16 +95,20 @@ void env_step(env_t *env, float *action, float *observation, float *reward, int 
 		ai_t *ai = ZRC_GET(zrc, ai, agent);
 		if (ai) {
 			*reward += ai->reward;
+			if (ai->done) {
+				*done = 1;
+				printf("done (won) %.2f\n", t);
+			}
 		} else {
 			*done = 1;
-			puts("done (dead)");
+			printf("done (dead) %.2f\n", t);
 		}
 	}
 
 	// 1 minute
-	if (zrc->frame > 60 / TICK_RATE) {
+	if (t > 60) {
 		*done = 1;
-		puts("done (time)");
+		printf("done (time) %2.f\n", t);
 	}
 
 	//printf("%u obs", zrc.frame);

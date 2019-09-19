@@ -180,7 +180,7 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		}
 	}
 	
-	//tf_brain_update(&zrc_host->tf_brain, zrc);
+	tf_brain_update(&zrc_host->tf_brain, zrc);
 }
 
 id_t zrc_host_put(zrc_host_t *zrc_host, guid_t guid) {
@@ -250,10 +250,11 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
 			ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		}
-		ZRC_SPAWN(zrc, visual, id, &(visual_t) {
-			//.color = color_random(255)
-			.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
-		});
+		visual_t visual = {
+			.color = color_random(255)
+			//.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
+		};
+		ZRC_SPAWN(zrc, visual, id, &visual);
 		flight_t flight = {
 			.max_thrust = 15000,
 			.max_turn = 15000
@@ -292,18 +293,31 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		}
 		ZRC_SPAWN(zrc, team, id, &faction);
 
-		ZRC_SPAWN(zrc, ai, id, &(ai_t){
-			.train = !i
-		});
-
-		contact_damage_t contact_damage = {
-			.damage = {
-				.from = id,
-				.health = 10
-			},
-			.onhit_id = ID_INVALID
+		ai_t ai = {
+			.train = !i,
+			.goalp = {.x = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES,.y = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES },
+			.goala = randf() * 2 * CP_PI
 		};
-		ZRC_SPAWN(zrc, contact_damage, id, &contact_damage);
+		ZRC_SPAWN(zrc, ai, id, &ai);
+
+		/*if (ai.train)*/ {
+			visual_t goal = {
+				.position = {ai.goalp.x, ai.goalp.y},
+				.angle = ai.goala,
+				.size = {25, 25},
+				.color = visual.color
+			};
+			ZRC_SPAWN(zrc, visual, zrc_host_put(zrc_host, guid_create()), &goal);
+		}
+
+		//contact_damage_t contact_damage = {
+		//	.damage = {
+		//		.from = id,
+		//		.health = 10
+		//	},
+		//	.onhit_id = ID_INVALID
+		//};
+		//ZRC_SPAWN(zrc, contact_damage, id, &contact_damage);
 	}
 }
 void demo_world_delete(demo_world_t *demo_world) {

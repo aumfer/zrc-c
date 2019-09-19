@@ -22,7 +22,7 @@ void ai_create(zrc_t *zrc, id_t id, ai_t *ai) {
 }
 void ai_delete(zrc_t *zrc, id_t id, ai_t *ai) {
 }
-void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
+void ai_updatex(zrc_t *zrc, id_t id, ai_t *ai) {
 	float next_reward = 0;
 
 	physics_t *physics = ZRC_GET(zrc, physics, id);
@@ -89,7 +89,76 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	ai->total_reward += ai->reward;
 }
 
+void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
+	if (!ZRC_HAS(zrc, physics, id) || !ZRC_HAD(zrc, physics, id)) return;
+
+	ai->reward = 0;
+
+	physics_t *physics = ZRC_GET_READ(zrc, physics, id);
+	physics_t *pphysics = ZRC_GET_PREV(zrc, physics, id);
+	
+	cpVect front = cpvforangle(physics->angle);
+	cpVect pfront = cpvforangle(pphysics->angle);
+	cpVect goal_front = cpvforangle(ai->goala);
+
+	float ad = cpvdot(front, goal_front);
+	float pad = cpvdot(pfront, goal_front);
+	float ar = (ad - pad);
+	ai->reward += ar / physics->max_spin;
+	float pd = cpvdistsq(physics->position, ai->goalp);
+	float ppd = cpvdistsq(pphysics->position, ai->goalp);
+	float pr = (ppd - pd);
+	ai->reward += pr / physics->max_speed;
+	//ai->reward += 1 / max(1, pd);
+	if (pd < (physics->radius*physics->radius) && ad > 0.8f) {
+		ai->reward += 10;
+		ai->done = 1;
+	}
+
+	ai->total_reward += ai->reward;
+}
+
 void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
+	const ai_t *ai = ZRC_GET_PAST(zrc, ai, id, frame);
+	const physics_t *physics = ZRC_GET_PAST(zrc, physics, id, frame);
+
+	cpVect front = cpvforangle(physics->angle);
+	cpVect goal_front = cpvforangle(ai->goala);
+	float goald = cpvdistsq(physics->position, ai->goalp);
+#define LIDAR 16
+
+	int op = 0;
+	float distances[LIDAR];
+	for (int i = 0; i < LIDAR; ++i) {
+		float a = ((float)i / LIDAR) * (CP_PI * 2);
+		cpVect v = cpvforangle(a);
+		v = cpvrotate(v, front);
+		float oa = cpvdot(v, goal_front);
+		observation[op++] = oa;
+
+		cpVect p = cpvadd(physics->position, v);
+		float d = cpvdistsq(p, ai->goalp);
+		distances[i] = goald - d;
+	}
+
+	float min_distance = FLT_MAX;
+	float max_distance = -FLT_MAX;
+	for (int i = 0; i < LIDAR; ++i) {
+		min_distance = min(min_distance, distances[i]);
+		max_distance = max(max_distance, distances[i]);
+	}
+	for (int i = 0; i < LIDAR; ++i) {
+		double d = (distances[i] - min_distance) / (max_distance - min_distance);
+		observation[op++] = (float)d;
+	}
+
+	assert(op == AI_OBSERVATION_LENGTH);
+	for (int i = 0; i < op; ++i) {
+		assert(observation[i] >= -1-FLT_EPSILON && observation[i] <= 1+FLT_EPSILON);
+	}
+}
+
+void ai_observex(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 	const ai_t *ai = ZRC_GET_PAST(zrc, ai, id, frame);
 	const physics_t *physics = ZRC_GET_PAST(zrc, physics, id, frame);
 	const sense_t *sense = ZRC_GET_PAST(zrc, sense, id, frame);
@@ -211,6 +280,10 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 
 static unsigned has_cast[ABILITY_COUNT];
 
+static float step(float v) {
+	return v < 0 ? -1.0f : (v > 0 ? +1.0f : 0.0f);
+}
+
 void ai_act(zrc_t *zrc, id_t id, float *action) {
 	for (int i = 0; i < AI_ACTION_LENGTH; ++i) {
 		if (!isvalid(action[i])) {
@@ -228,6 +301,9 @@ void ai_act(zrc_t *zrc, id_t id, float *action) {
 		.thrust = { action[ap++], action[ap++] },
 		.turn = action[ap++]
 	};
+	flight_thrust.thrust[0] = step(flight_thrust.thrust[0]);
+	flight_thrust.thrust[1] = step(flight_thrust.thrust[1]);
+	flight_thrust.turn = step(flight_thrust.turn);
 	ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
 #if 0
 	ability_id_t ability_id = ability_match(ai, &action[ap]);
