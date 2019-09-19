@@ -79,40 +79,45 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 	zrc_assert(ai && physics && sense);
 	int op = 0;
 
+	cpVect front = cpvforangle(physics->angle);
+
 	for (int i = 0; i < SENSE_MAX_ENTITIES; ++i) {
 		id_t sid = sense->entities[i];
 		const physics_t *sphysics = ZRC_GET_PAST(zrc, physics, sid, frame);
 		const caster_t *scaster = ZRC_GET_PAST(zrc, caster, sid, frame);
 		const life_t *slife = ZRC_GET_PAST(zrc, life, sid, frame);
 
+		//if (sid == id) continue;
+
 		float isme = id == sid ? 1.0f : 0.0f;
 		observation[op++] = isme;
 		if (ZRC_HAD_PAST(zrc, physics, sid, frame)) {
+			cpVect sfront = cpvforangle(sphysics->angle);
+
 			float sradius = sphysics->radius / MAP_SCALE;
 			observation[op++] = sradius;
 			cpVect soffset = cpvsub(sphysics->position, physics->position);
 			cpVect sscale_offset = cpvmult(soffset, 1 / sense->range);
-			observation[op++] = sscale_offset.x;
-			observation[op++] = sscale_offset.y;
-			cpVect srel_scale_offset = cpvrotate(sscale_offset, cpvforangle(physics->angle));
+			cpVect srel_scale_offset = cpvrotate(sscale_offset, front);
 			observation[op++] = srel_scale_offset.x;
 			observation[op++] = srel_scale_offset.y;
 			float scaled_dist = cpvdistsq(physics->position, sphysics->position) / max(1, sense->range*sense->range);
 			observation[op++] = scaled_dist;
 			float angle = sphysics->angle;
-			observation[op++] = angle / (CP_PI * 2);
 			float srel_angle = angle - physics->angle;
-			observation[op++] = srel_angle / (CP_PI * 2);
+			float srel_scale_angle = fmodf(srel_angle, (CP_PI * 2));
+			observation[op++] = srel_scale_angle;
 			cpVect svelocity = sphysics->velocity;
 			cpVect sscale_velocity = cpvmult(svelocity, 1 / max(1, sense->range));
-			observation[op++] = sscale_velocity.x;
-			observation[op++] = sscale_velocity.y;
-			cpVect srel_scale_velocity = cpvrotate(sscale_velocity, cpvforangle(physics->angle));
+			cpVect srel_scale_velocity = cpvrotate(sscale_velocity, front);
 			observation[op++] = srel_scale_velocity.x;
 			observation[op++] = srel_scale_velocity.y;
+			cpVect srels_scale_velocity = cpvrotate(sscale_velocity, sfront);
+			observation[op++] = srels_scale_velocity.x;
+			observation[op++] = srels_scale_velocity.y;
 		} else {
-			memset(&observation[op], 0, sizeof(float) * 12);
-			op += 12;
+			memset(&observation[op], 0, sizeof(float) * 9);
+			op += 9;
 		}
 
 #if 0
@@ -147,6 +152,7 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 			observation[op++] = is_cast;
 		}
 #endif
+#if 0
 		if (ZRC_HAD_PAST(zrc, life, sid, frame)) {
 			float healthpct = slife->health / max(1, slife->max_health);
 			observation[op++] = healthpct;
@@ -158,6 +164,7 @@ void ai_observe(const zrc_t *zrc, id_t id, unsigned frame, float *observation) {
 			memset(&observation[op], 0, sizeof(float) * 3);
 			op += 3;
 		}
+#endif
 	}
 	zrc_assert(op == AI_OBSERVATION_LENGTH);
 #if 0

@@ -26,6 +26,8 @@ typedef struct control {
 	id_t unit;
 
 	float ground[2];
+
+	int fixed_camera;
 } control_t;
 
 void control_create(control_t *);

@@ -43,13 +43,17 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 		camera->zoom += physics->radius;
 
 		cpVect look = cpv(16, 0);
-		cpVect target = cpvrotate(look, cpvforangle(physics->angle));
-		camera->target[0] = (float)(physics->position.x /*+ physics->velocity[0]/10*/ + target.x);
-		camera->target[1] = (float)(physics->position.y /*+ physics->velocity[1]/10*/ + target.y);
+		if (!control->fixed_camera) {
+			look = cpvrotate(look, cpvforangle(physics->angle));
+		}
+		camera->target[0] = (float)(physics->position.x /*+ physics->velocity[0]/10*/ + look.x);
+		camera->target[1] = (float)(physics->position.y /*+ physics->velocity[1]/10*/ + look.y);
 		cpVect offset = cpv(-16, 0);
-		cpVect position = cpvrotate(offset, cpvforangle(physics->angle));
-		camera->position[0] = (float)(physics->position.x /*- physics->velocity[0]/10*/ + position.x);
-		camera->position[1] = (float)(physics->position.y /*- physics->velocity[1]/10*/ + position.y);
+		if (!control->fixed_camera) {
+			offset = cpvrotate(offset, cpvforangle(physics->angle));
+		}
+		camera->position[0] = (float)(physics->position.x /*- physics->velocity[0]/10*/ + offset.x);
+		camera->position[1] = (float)(physics->position.y /*- physics->velocity[1]/10*/ + offset.y);
 	}
 
 	if (ZRC_HAS(zrc, flight, control->unit)) {

@@ -16,6 +16,7 @@ extern "C" {
 #include <moving_average.h>
 #include <timer.h>
 #include <color.h>
+#undef NDEBUG
 #include <assert.h>
 
 typedef uint16_t id_t;
@@ -35,16 +36,7 @@ typedef uint16_t id_t;
 
 #define randf() ((float)rand() / RAND_MAX)
 
-_ACRTIMP void __cdecl _wassert(
-	_In_z_ wchar_t const* _Message,
-	_In_z_ wchar_t const* _File,
-	_In_   unsigned       _Line
-);
-
-#define zrc_assert(expression) (void)(                                                       \
-            (!!(expression)) ||                                                              \
-            (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \
-        )
+#define zrc_assert assert
 
 typedef struct zrc zrc_t;
 
@@ -284,7 +276,7 @@ typedef struct relationship {
 } relationship_t;
 
 //#define AI_OBSERVATION_LENGTH 6144
-#define AI_OBSERVATION_LENGTH 1024
+#define AI_OBSERVATION_LENGTH 640
 //#define AI_ACTION_LENGTH 13
 #define AI_ACTION_LENGTH 3
 

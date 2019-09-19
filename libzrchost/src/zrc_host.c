@@ -252,7 +252,7 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		}
 	}
 	
-	if (0) {
+	if (1) {
 	//if ((zrc_host->frame & 3) == 0) {
 		for (int i = 0; i < MAX_ENTITIES; ++i) {
 			ai_t *ai = ZRC_GET(zrc, ai, i);
@@ -270,7 +270,6 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 					const char *msg = TF_Message(zrc_host->status);
 					puts(msg);
 #endif
-					zrc_assert(0);
 				}
 				else {
 					ai_act(zrc, i, TF_TensorData(zrc_host->output_tensor));

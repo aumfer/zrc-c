@@ -93,7 +93,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 	for (int i = 0; i < zrc_component_count; ++i) {
 		char ctime[32];
-		sprintf_s(ctime, sizeof(ctime), "%2d| %2.0fms", i, stm_ms(zrc->times[i]));
+		sprintf_s(ctime, sizeof(ctime), "%2d| %2.2fms", i, stm_ms(zrc->times[i]));
 		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 101.0f, [1] = sapp_height() - 20.0f - (20*i) }, 0xff333333);
 		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 100.0f, [1] = sapp_height() - 21.0f - (20*i) }, 0xffcccccc);
 	}

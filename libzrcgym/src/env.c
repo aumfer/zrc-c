@@ -119,6 +119,7 @@ static void init(void *data) {
 	env_t *env = data;
 
 	zrc_draw_create(env->zrc_draw);
+	env->zrc_draw->control.fixed_camera = 1;
 }
 
 static void frame(void *data) {
