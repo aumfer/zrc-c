@@ -90,10 +90,14 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 	ai_t *ai = ZRC_GET(zrc, ai, control->unit);
 	if (ai) {
-		char reward[32];
-		sprintf_s(reward, sizeof(reward), "reward: %4.2f %4.2f", ai->reward, ai->total_reward);
-		font_print(&draw->font, reward, (float[2]) { [0] = 10, [1] = 170 }, 0xff333333);
-		font_print(&draw->font, reward, (float[2]) { [0] = 11, [1] = 171 }, 0xffcccccc);
+		char sreward[32];
+		//float reward = ai->train_locomotion.reward;
+		//float total_reward = ai->train_locomotion.total_reward;
+		float reward = ai->train_sense.reward;
+		float total_reward = ai->train_sense.total_reward;
+		sprintf_s(sreward, sizeof(sreward), "reward: %4.2f %4.2f", reward, total_reward);
+		font_print(&draw->font, sreward, (float[2]) { [0] = 10, [1] = 170 }, 0xff333333);
+		font_print(&draw->font, sreward, (float[2]) { [0] = 11, [1] = 171 }, 0xffcccccc);
 	}
 
 	for (int i = 0; i < zrc_component_count; ++i) {

@@ -2,27 +2,28 @@
 #include <stdio.h>
 #include <io.h>
 
-void tf_brain_create(tf_brain_t *tf_brain) {
+void tf_brain_create(tf_brain_t *tf_brain, const char *location, int num_input, int num_output) {
+	tf_brain->num_input = num_input;
+	tf_brain->num_output = num_output;
 	tf_brain->status = TF_NewStatus();
 	tf_brain->graph = TF_NewGraph();
-	TF_RegisterLogListener(puts);
+	//TF_RegisterLogListener(puts);
+
+	char file[_MAX_PATH];
+	sprintf_s(file, sizeof(file), "%ssaved_model.pb", location);
+	if (_access(file, 0) == -1) {
+		return;
+	}
 
 #if 1
 	TF_SessionOptions* session_options = TF_NewSessionOptions();
-	if (_access("C:\\GitHub\\aumfer\\zrc-learn\\log\\simple_save\\saved_model.pb", 0) == -1) {
-		return;
-	}
-	tf_brain->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\aumfer\\zrc-learn\\log\\simple_save\\", (char*[]) { "serve" }, 1, tf_brain->graph, 0, tf_brain->status);
-	//tf_brain->session = TF_LoadSessionFromSavedModel(session_options, 0, "C:\\GitHub\\openai\\spinningup\\log\\simple_save\\", (char*[]) { "serve" }, 1, tf_brain->graph, 0, tf_brain->status);
-	if (TF_GetCode(tf_brain->status) != TF_OK) {
-		const char *msg = TF_Message(tf_brain->status);
-		puts(msg);
-		zrc_assert(0);
-	}
+	tf_brain->session = TF_LoadSessionFromSavedModel(session_options, 0, location, (char*[]) { "serve" }, 1, tf_brain->graph, 0, tf_brain->status);
+	tf_brain_check_status(tf_brain);
 	TF_DeleteSessionOptions(session_options);
 #else
 	TF_SessionOptions* session_options = TF_NewSessionOptions();
 	tf_brain->session = TF_NewSession(tf_brain->graph, session_options, tf_brain->status);
+	tf_brain_check_status(tf_brain);
 	TF_DeleteSessionOptions(session_options);
 	TF_ImportGraphDefOptions* import_options = TF_NewImportGraphDefOptions();
 	//FILE *f = fopen("C:\\GitHub\\aumfer\\zrc-learn\\test.pb", "rb");
@@ -38,10 +39,7 @@ void tf_brain_create(tf_brain_t *tf_brain) {
 	free(buf);
 	fclose(f);
 	TF_GraphImportGraphDef(tf_brain->graph, graph_def, import_options, tf_brain->status);
-	if (TF_GetCode(tf_brain->status) != TF_OK) {
-		const char *msg = TF_Message(tf_brain->status);
-		puts(msg);
-	}
+	tf_brain_check_status(tf_brain);
 	TF_DeleteImportGraphDefOptions(import_options);
 #endif
 #if 0
@@ -58,11 +56,8 @@ void tf_brain_create(tf_brain_t *tf_brain) {
 	tf_brain->input.oper = TF_GraphOperationByName(tf_brain->graph, "Placeholder");
 	tf_brain->input.index = 0;
 	tf_brain->output.oper = TF_GraphOperationByName(tf_brain->graph, "pi/add");
-	//tf_brain->output.oper = TF_GraphOperationByName(tf_brain->graph, "model/split");
-	//tf_brain->output.oper = TF_GraphOperationByName(tf_brain->graph, "model/Exp");
-	//tf_brain->output.oper = TF_GraphOperationByName(tf_brain->graph, "output/strided_slice_1");
 	tf_brain->output.index = 0;
-	tf_brain->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { 1, AI_OBSERVATION_LENGTH }, 2, AI_OBSERVATION_LENGTH * sizeof(float));
+	tf_brain->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { 1, num_input }, 2, num_input * sizeof(float));
 	//tf_brain->output_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { AI_ACTION_LENGTH }, 1, AI_ACTION_LENGTH * sizeof(float));
 
 	//TF_Operation *init_op = TF_GraphOperationByName(tf_brain->graph, "init");
@@ -84,38 +79,19 @@ void tf_brain_delete(tf_brain_t *tf_brain) {
 	//TF_DeleteTensor(tf_brain->output_tensor);
 	TF_DeleteTensor(tf_brain->input_tensor);
 	TF_DeleteSession(tf_brain->session, tf_brain->status);
+	tf_brain_check_status(tf_brain);
 	TF_DeleteGraph(tf_brain->graph);
 	TF_DeleteStatus(tf_brain->status);
 }
 
-void tf_brain_update(tf_brain_t *tf_brain, zrc_t *zrc) {
-	if (!tf_brain->session) {
-		return;
-	}
-	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		ai_t *ai = ZRC_GET(zrc, ai, i);
-		if (ai && !ai->train && !ai->done) {
-			TF_Tensor *input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { 1, AI_OBSERVATION_LENGTH }, 2, AI_OBSERVATION_LENGTH * sizeof(float));
-			ai_observe(zrc, i, 0, TF_TensorData(input_tensor));
-			TF_Tensor* output_tensor[] = { 0 };
-			TF_SessionRun(tf_brain->session, 0,
-				(TF_Output[]) { tf_brain->input },
-				(TF_Tensor*[]) { input_tensor }, 1,
-				(TF_Output[]) { tf_brain->output },
-				//(TF_Tensor*[]) { tf_brain->output_tensor }, 1,
-				output_tensor, 1,
-				0, 0, 0, tf_brain->status);
-			if (TF_GetCode(tf_brain->status) != TF_OK) {
+int tf_brain_check_status(const tf_brain_t *tf_brain) {
+	if (TF_GetCode(tf_brain->status) != TF_OK) {
 #if _DEBUG
-				const char *msg = TF_Message(tf_brain->status);
-				puts(msg);
+		const char *msg = TF_Message(tf_brain->status);
+		puts(msg);
 #endif
-			}
-			else {
-				ai_act(zrc, i, TF_TensorData(output_tensor[0]));
-				TF_DeleteTensor(output_tensor[0]);
-			}
-			TF_DeleteTensor(input_tensor);
-		}
+		assert(0);
+		return 0;
 	}
+	return 1;
 }

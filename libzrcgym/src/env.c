@@ -19,6 +19,8 @@ typedef struct env {
 	zrc_draw_t *zrc_draw;
 	thrd_t draw_thrd;
 	mtx_t draw_mtx;
+
+	id_t sense_train_id;
 } env_t;
 
 static int has_stm;
@@ -42,14 +44,20 @@ void env_delete(env_t *env) {
 	free(env);
 }
 
-int env_observation_length(void) {
-	return AI_OBSERVATION_LENGTH;
+int env_locomotion_obs_length(void) {
+	return AI_LOCOMOTION_OBS_LENGTH;
 }
-int env_action_length(void) {
-	return AI_ACTION_LENGTH;
+int env_locomotion_act_length(void) {
+	return AI_LOCOMOTION_ACT_LENGTH;
+}
+int env_sense_obs_length(void) {
+	return AI_SENSE_OBS_LENGTH;
+}
+int env_sense_act_length(void) {
+	return AI_SENSE_ACT_LENGTH;
 }
 
-void env_reset(env_t *env, float *observation) {
+void env_reset(env_t *env) {
 	mtx_lock(&env->draw_mtx);
 
 	++env->num_resets;
@@ -66,35 +74,68 @@ void env_reset(env_t *env, float *observation) {
 	}
 	gym_create(env->gym);
 
+	mtx_unlock(&env->draw_mtx);
+
 	// hack
 	for (int i = 0; i < 3; ++i) {
 		gym_update(env->gym);
 	}
-
-	ai_observe(&env->gym->zrc, env->gym->agent, 0, observation);
-
-	mtx_unlock(&env->draw_mtx);
 }
 
-void env_step(env_t *env, float *action, float *observation, float *reward, int *done) {
+void env_reset_locomotion(env_t *env, float *observation) {
+	env_reset(env);
+
+	zrc_t *zrc = &env->gym->zrc;
+	id_t agent = env->gym->agent;
+
+	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
+	if (ai) {
+		ai->train_flags |= AI_TRAIN_LOCOMOTION;
+	}
+
+	ai_observe_locomotion_train(zrc, agent, 0, observation);
+}
+
+void env_reset_sense(env_t *env, float *observation) {
+	env_reset(env);
+
+	zrc_t *zrc = &env->gym->zrc;
+	id_t agent = env->gym->agent;
+
+	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
+	if (ai) {
+		ai->train_flags |= AI_TRAIN_SENSE;
+	}
+
+	const sense_t *sense = ZRC_GET(zrc, sense, agent);
+	if (sense) {
+		int sense_index = rand() % sense->num_entities;
+		id_t sid = sense->entities[sense_index];
+		env->sense_train_id = sid;
+		ai_observe_sense(zrc, agent, sid, 0, observation);
+	}
+}
+
+void env_step_locomotion(env_t *env, float *action, float *observation, float *reward, int *done) {
 	if (!env->gym) return;
 	gym_t *gym = env->gym;
 	zrc_t *zrc = &env->gym->zrc;
 	id_t agent = env->gym->agent;
+
+	ai_t *ai = ZRC_GET(zrc, ai, agent);
 	
 	float t = zrc->frame * TICK_RATE;
 
 	for (int i = 0; i < 1; ++i) {
 		//printf("%u act", zrc.frame);
-		ai_act(zrc, agent, action);
+		ai_act_locomotion(zrc, agent, action);
 		//puts(" done");
 		//printf("%u update", zrc.frame);
 		gym_update(gym);
 		//puts(" done");
 
-		ai_t *ai = ZRC_GET(zrc, ai, agent);
 		if (ai) {
-			*reward += ai->reward;
+			*reward += ai->train_locomotion.reward;
 			if (ai->done) {
 				*done = 1;
 				printf("done (won) %.2f\n", t);
@@ -112,12 +153,64 @@ void env_step(env_t *env, float *action, float *observation, float *reward, int 
 	}
 
 	//printf("%u obs", zrc.frame);
-	ai_observe(zrc, agent, 0, observation);
+	ai_observe_locomotion_train(zrc, agent, 0, observation);
 	//puts(" done");
 
 	if (*done) {
 		ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
-		printf("reward %.2f\n", aip->total_reward);
+		printf("reward %.2f\n", aip->train_locomotion.total_reward);
+	}
+}
+
+void env_step_sense(env_t *env, float *action, float *observation, float *reward, int *done) {
+	if (!env->gym) return;
+	gym_t *gym = env->gym;
+	zrc_t *zrc = &env->gym->zrc;
+	id_t agent = env->gym->agent;
+
+	ai_t *ai = ZRC_GET(zrc, ai, agent);
+
+	float t = zrc->frame * TICK_RATE;
+
+	for (int i = 0; i < 1; ++i) {
+		//printf("%u act", zrc.frame);
+		ai_act_sense(zrc, agent, env->sense_train_id, action);
+		//puts(" done");
+		//printf("%u update", zrc.frame);
+		gym_update(gym);
+		//puts(" done");
+
+		if (ai) {
+			*reward += ai->train_sense.reward;
+			if (ai->done) {
+				*done = 1;
+				printf("done (won) %.2f\n", t);
+			}
+		}
+		else {
+			*done = 1;
+			printf("done (dead) %.2f\n", t);
+		}
+	}
+
+	// 1 minute
+	if (t > 60) {
+		*done = 1;
+		printf("done (time) %2.f\n", t);
+	}
+
+	const sense_t *sense = ZRC_GET(zrc, sense, agent);
+	if (sense) {
+		int sense_index = rand() % sense->num_entities;
+		id_t sid = sense->entities[sense_index];
+		env->sense_train_id = sid;
+		ai_observe_sense(zrc, agent, sid, 0, observation);
+	}
+	
+
+	if (*done) {
+		ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
+		printf("reward %.2f\n", aip->train_sense.total_reward);
 	}
 }
 
@@ -175,4 +268,8 @@ void env_render(env_t *env) {
 		env->zrc_draw = calloc(1, sizeof(zrc_draw_t));
 		thrd_create(&env->draw_thrd, draw, env);
 	}
+}
+
+gym_t *env_gym(env_t *env) {
+	return env->gym;
 }

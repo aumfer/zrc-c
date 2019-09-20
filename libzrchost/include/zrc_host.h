@@ -19,7 +19,8 @@ typedef struct zrc_host {
 	khash_t(ehash) *entities;
 	demo_world_t demo_world; // todo move
 
-	tf_brain_t tf_brain;
+	tf_brain_t locomotion_brain;
+	tf_brain_t sense_brain;
 
 	timer_t timer;
 	moving_average_t tick_fps;

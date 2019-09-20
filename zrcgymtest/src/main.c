@@ -3,17 +3,36 @@
 
 int main(int argc, char **argv) {
 	env_t *env = env_create();
-	float obs[AI_OBSERVATION_LENGTH];
-	env_reset(env, obs);
+
+	env_reset(env);
 	env_render(env);
 
 	thrd_sleep(&(struct timespec) {
-		.tv_sec = 5
+		.tv_sec = 1
 	}, 0);
 
-	env_reset(env, obs);
+	env_reset(env);
+
+	gym_t *gym = env_gym(env);
+	zrc_t *zrc = &gym->zrc;
 
 	for (;;) {
+		float lobs[AI_LOCOMOTION_OBS_LENGTH];
+		ai_observe_locomotion_train(zrc, gym->agent, 0, lobs);
+
+		float sobs[AI_SENSE_OBS_LENGTH];
+		
+		sense_t *sense = ZRC_GET(zrc, sense, gym->agent);
+		if (sense) {
+			for (int i = 0; i < sense->num_entities; ++i) {
+				ai_observe_sense(zrc, gym->agent, i, 0, sobs);
+			}
+		}
+
+		float reward = 0;
+		int done = 0;
+		env_step_sense(env, lobs, sobs, &reward, &done);
+
 		thrd_yield();
 	}
     return 0;

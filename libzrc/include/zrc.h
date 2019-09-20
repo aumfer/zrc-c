@@ -236,7 +236,7 @@ typedef struct contact_damage {
 typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point);
 
 typedef struct locomotion {
-	locomotion_behavior_t behaviors[MAX_MESSAGES];
+	locomotion_behavior_t behaviors[1]; // temp
 	int num_behaviors;
 
 	unsigned locomotion_behavior_index;
@@ -276,22 +276,38 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
-//#define AI_OBSERVATION_LENGTH 6144
-#define AI_OBSERVATION_LENGTH 32
-//#define AI_ACTION_LENGTH 13
-#define AI_ACTION_LENGTH 3
+#define AI_LIDAR 16
 
-//static_assert((AI_OBSERVATION_LENGTH % SENSE_MAX_ENTITIES) == 0, "invalid AI_OBSERVATION_LENGTH");
+#define AI_LOCOMOTION_OBS_LENGTH (AI_LIDAR*2) // thrust, turn
+#define AI_LOCOMOTION_ACT_LENGTH 3 // thrust.x, thrust.y, turn
+#define AI_SENSE_OBS_LENGTH (11+AI_LOCOMOTION_OBS_LENGTH)
+//#define AI_SENSE_ACT_LENGTH 2 // thrust, turn
+#define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
+
+typedef enum ai_train_flags {
+	AI_TRAIN_NONE = 0,
+	AI_TRAIN_LOCOMOTION = 1,
+	AI_TRAIN_SENSE = 2
+} ai_train_flags_t;
 
 typedef struct ai {
-	int train;
-
-	float total_reward;
-	float reward;
-
 	int done;
-	cpVect goalp;
-	float goala;
+	ai_train_flags_t train_flags;
+
+	struct {
+		float total_reward;
+		float reward;
+
+		cpVect goalp;
+		float goala;
+	} train_locomotion;
+
+	struct {
+		float total_reward;
+		float reward;
+	} train_sense;
+
+	float locomotion_obs[AI_LOCOMOTION_OBS_LENGTH];
 
 	unsigned damage_dealt_index;
 	unsigned got_kill_index;
@@ -573,8 +589,11 @@ void ai_shutdown(zrc_t *);
 void ai_create(zrc_t *, id_t, ai_t *);
 void ai_delete(zrc_t *, id_t, ai_t *);
 void ai_update(zrc_t *, id_t, ai_t *);
-void ai_observe(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
-void ai_act(zrc_t *, id_t id, float *numpyarray);
+void ai_observe_locomotion(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
+void ai_observe_locomotion_train(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
+void ai_act_locomotion(zrc_t *, id_t id, float *numpyarray);
+void ai_observe_sense(const zrc_t *zrc, id_t id, id_t sid, unsigned frame, float *observation);
+void ai_act_sense(zrc_t *zrc, id_t id, id_t sid, float *action);
 
 
 #ifdef __cplusplus

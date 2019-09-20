@@ -48,7 +48,7 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 			float hit_speed = cpvlengthsq(hit_physics->velocity);
 			if (speed < hit_speed) {
 				// fastest wins
-				return;
+				//return;
 			}
 		}
 	}
