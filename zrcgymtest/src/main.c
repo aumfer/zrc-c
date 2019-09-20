@@ -18,16 +18,10 @@ int main(int argc, char **argv) {
 
 	for (;;) {
 		float lobs[AI_LOCOMOTION_OBS_LENGTH];
-		ai_observe_locomotion_train(zrc, gym->agent, 0, lobs);
+		ai_observe_locomotion_train(zrc, gym->agent, lobs);
 
 		float sobs[AI_SENSE_OBS_LENGTH];
-		
-		sense_t *sense = ZRC_GET(zrc, sense, gym->agent);
-		if (sense) {
-			for (int i = 0; i < sense->num_entities; ++i) {
-				ai_observe_sense(zrc, gym->agent, i, 0, sobs);
-			}
-		}
+		ai_observe_sense(zrc, gym->agent, sobs);
 
 		float reward = 0;
 		int done = 0;

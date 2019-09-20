@@ -17,6 +17,7 @@ void draw_create(draw_t *draw) {
 	draw_visual_create(&draw->draw_visual);
 	draw_world_create(&draw->draw_world);
 	draw_locomotion_create(&draw->draw_locomotion);
+	draw_ai_create(&draw->draw_ai);
 }
 void draw_delete(draw_t *draw) {
 	sg_shutdown();
@@ -91,10 +92,8 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	ai_t *ai = ZRC_GET(zrc, ai, control->unit);
 	if (ai) {
 		char sreward[32];
-		//float reward = ai->train_locomotion.reward;
-		//float total_reward = ai->train_locomotion.total_reward;
-		float reward = ai->train_sense.reward;
-		float total_reward = ai->train_sense.total_reward;
+		float reward = ai->reward;
+		float total_reward = ai->total_reward;
 		sprintf_s(sreward, sizeof(sreward), "reward: %4.2f %4.2f", reward, total_reward);
 		font_print(&draw->font, sreward, (float[2]) { [0] = 10, [1] = 170 }, 0xff333333);
 		font_print(&draw->font, sreward, (float[2]) { [0] = 11, [1] = 171 }, 0xffcccccc);
@@ -110,6 +109,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	float extra = draw->not_real_time ? 0 : (float)stm_sec(stm_since(zrc->timer.time));
 	draw_world_frame(&draw->draw_world, camera);
 	draw_locomotion_frame(&draw->draw_locomotion, zrc, camera, control, dt);
+	draw_ai_frame(&draw->draw_ai, zrc, camera, control, dt);
 	draw_visual_frame(&draw->draw_visual, zrc, camera, control, dt, extra);
 
 	font_end(&draw->font);

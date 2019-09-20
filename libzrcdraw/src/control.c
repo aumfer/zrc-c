@@ -58,20 +58,18 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 	if (ZRC_HAS(zrc, flight, control->unit)) {
 		flight_thrust_t flight_thrust = { 0 };
-		flight_thrust.thrust[0] = 0;
-		flight_thrust.thrust[1] = 0;
 
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
-			flight_thrust.thrust[0] += 1;
+			flight_thrust.thrust.x += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_BACKWARD)) {
-			flight_thrust.thrust[0] -= 1;
+			flight_thrust.thrust.x -= 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_STRAFE_LEFT)) {
-			flight_thrust.thrust[1] += 1;
+			flight_thrust.thrust.y += 1;
 		}
 		if (ui_button(ui, CONTROL_BUTTON_STRAFE_RIGHT)) {
-			flight_thrust.thrust[1] -= 1;
+			flight_thrust.thrust.y -= 1;
 		}
 		flight_thrust.turn = 0;
 		if (ui_button(ui, CONTROL_BUTTON_LEFT)) {

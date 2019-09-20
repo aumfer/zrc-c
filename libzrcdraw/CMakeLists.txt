@@ -3,6 +3,8 @@ add_library(libzrcdraw
     src/blur.c
     include/control.h
     src/control.c
+    include/draw_ai.h
+    src/draw_ai.c
     include/draw_blur.h
     src/draw_blur.c
     include/draw_locomotion.h

@@ -73,6 +73,8 @@ typedef struct physics {
 	float damping;
 
 	float radius;
+	float mass;
+	float moment;
 	float angle;
 	cpVect position;
 	cpVect velocity;
@@ -113,13 +115,19 @@ typedef struct visual {
 } visual_t;
 
 typedef struct flight_thrust {
-	float thrust[2];
+	cpVect thrust;
 	float turn;
 } flight_thrust_t;
 
 typedef struct flight {
 	float max_thrust;
 	float max_turn;
+
+	float thrust_control_rate;
+	float turn_control_rate;
+
+	cpVect thrust;
+	float turn;
 
 	unsigned thrust_index;
 } flight_t;
@@ -278,10 +286,11 @@ typedef struct relationship {
 
 #define AI_LIDAR 16
 
-#define AI_LOCOMOTION_OBS_LENGTH (AI_LIDAR*2) // thrust, turn
 #define AI_LOCOMOTION_ACT_LENGTH 3 // thrust.x, thrust.y, turn
-#define AI_SENSE_OBS_LENGTH (11+AI_LOCOMOTION_OBS_LENGTH)
-//#define AI_SENSE_ACT_LENGTH 2 // thrust, turn
+#define AI_LOCOMOTION_ENTITY_LENGTH 2 // thrust, turn
+#define AI_LOCOMOTION_OBS_LENGTH ((AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)
+#define AI_SENSE_ENTITY_LENGTH 2 // distance, team
+#define AI_SENSE_OBS_LENGTH (AI_LIDAR*AI_SENSE_ENTITY_LENGTH)
 #define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
 
 typedef enum ai_train_flags {
@@ -293,21 +302,18 @@ typedef enum ai_train_flags {
 typedef struct ai {
 	int done;
 	ai_train_flags_t train_flags;
+	float total_reward;
+	float reward;
 
 	struct {
-		float total_reward;
-		float reward;
-
 		cpVect goalp;
 		float goala;
 	} train_locomotion;
 
-	struct {
-		float total_reward;
-		float reward;
-	} train_sense;
-
+	float sense_obs[AI_SENSE_OBS_LENGTH];
+	float sense_act[AI_SENSE_ACT_LENGTH];
 	float locomotion_obs[AI_LOCOMOTION_OBS_LENGTH];
+	float locomotion_act[AI_LOCOMOTION_ACT_LENGTH];
 
 	unsigned damage_dealt_index;
 	unsigned got_kill_index;
@@ -589,11 +595,11 @@ void ai_shutdown(zrc_t *);
 void ai_create(zrc_t *, id_t, ai_t *);
 void ai_delete(zrc_t *, id_t, ai_t *);
 void ai_update(zrc_t *, id_t, ai_t *);
-void ai_observe_locomotion(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
-void ai_observe_locomotion_train(const zrc_t *, id_t id, unsigned frame, float *numpyarray);
+void ai_observe_locomotion(zrc_t *, id_t id, float *numpyarray);
+void ai_observe_locomotion_train(zrc_t *, id_t id, float *numpyarray);
 void ai_act_locomotion(zrc_t *, id_t id, float *numpyarray);
-void ai_observe_sense(const zrc_t *zrc, id_t id, id_t sid, unsigned frame, float *observation);
-void ai_act_sense(zrc_t *zrc, id_t id, id_t sid, float *action);
+void ai_observe_sense(zrc_t *zrc, id_t id, float *observation);
+void ai_act_sense(zrc_t *zrc, id_t id, float *action);
 
 
 #ifdef __cplusplus

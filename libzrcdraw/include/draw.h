@@ -7,6 +7,7 @@
 #include <control.h>
 #include <moving_average.h>
 #include <draw_locomotion.h>
+#include <draw_ai.h>
 
 typedef struct draw {
 	moving_average_t fps;
@@ -14,6 +15,7 @@ typedef struct draw {
 	draw_world_t draw_world;
 	font_t font;
 	draw_locomotion_t draw_locomotion;
+	draw_ai_t draw_ai;
 
 	int not_real_time;
 } draw_t;

@@ -16,31 +16,32 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
 	zrc_assert(physics);
 
-	cpVect sum_force = cpvzero;
-	float sum_torque = 0;
-	int num_thrusts = 0;
+	cpVect thrust = cpvzero;
+	float turn = 0;
 
 	flight_thrust_t *flight_thrust;
 	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->thrust_index, flight_thrust, {
-		cpVect thrust = cpv(flight_thrust->thrust[0], flight_thrust->thrust[1]);
-		//thrust.x = max(0, thrust.x);
-		thrust = cpvclamp(thrust, 1);
-		thrust = cpvrotate(thrust, cpvforangle(physics->angle));
-		cpVect force = cpvmult(thrust, flight->max_thrust);
-
-		float turn = flight_thrust->turn;
-		turn = (float)cpfclamp(turn, -1, +1);
-		float torque = turn * flight->max_turn;
-
-		sum_force = cpvadd(sum_force, force);
-		sum_torque += torque;
-		++num_thrusts;
+		thrust = cpvadd(thrust, flight_thrust->thrust);
+		turn += flight_thrust->turn;
 	});
 
-	cpVect force = cpvmult(sum_force, 1.0f / max(1, num_thrusts));
-	float torque = sum_torque / max(1, num_thrusts);
+	// noreverse
+	thrust.x = max(0, thrust.x);
+	// halfstrafe
+	thrust.y = thrust.y / 2;
+	thrust = cpvclamp(thrust, 1);
+	thrust = cpvrotate(thrust, cpvforangle(physics->angle));
+
+	turn = (float)cpfclamp(turn, -1, +1);
+
+	flight->thrust = cpvlerp(flight->thrust, thrust, flight->thrust_control_rate*TICK_RATE);
+	flight->turn = cpflerp(flight->turn, turn, flight->turn_control_rate*TICK_RATE);
+
+	cpVect force = cpvmult(flight->thrust, flight->max_thrust);
+	float torque = flight->turn * flight->max_turn;
+
 	if (ZRC_HAS(zrc, physics_controller, id)) {
-		if (num_thrusts) {
+		/*if (!cpveql(force, cpvzero) || torque != 0)*/ {
 			physics_controller_velocity_t physics_controller_velocity = {
 				.velocity = force,
 				.angular_velocity = torque
@@ -48,20 +49,10 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 			ZRC_SEND(zrc, physics_controller_velocity, id, &physics_controller_velocity);
 		}
 	} else {
-		float damp = 2;
-
-		//cpVect force_damp = cpvmult(physics->velocity, -damp);
-		//float torque_damp = (float)(physics->angular_velocity * -damp);
-		//
-		//cpVect apply_force = cpvadd(force, force_damp);
-		//float apply_torque = torque + torque_damp;
-		cpVect apply_force = force;
-		float apply_torque = torque;
-
-		if (!cpveql(apply_force, cpvzero) || apply_torque != 0) {
+		if (!cpveql(force, cpvzero) || torque != 0) {
 			physics_force_t physics_force = {
-				.force = apply_force,
-				.torque = apply_torque
+				.force = force,
+				.torque = torque
 			};
 			ZRC_SEND(zrc, physics_force, id, &physics_force);
 		}

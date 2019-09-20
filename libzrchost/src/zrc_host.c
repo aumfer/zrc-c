@@ -182,35 +182,39 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		}
 	}
 	
-	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		ai_t *ai = ZRC_GET(zrc, ai, i);
-		if (!ai) continue;
-
-		sense_t *sense = ZRC_GET(zrc, sense, i);
-		if (!sense) continue;
-
-		int train_sense = (ai->train_flags & AI_TRAIN_SENSE) == AI_TRAIN_SENSE;
-		if (train_sense) continue;
-
-		tf_brain_t *brain = &zrc_host->sense_brain;
-		if (!brain->session) break;
-
-		for (int j = 0; j < sense->num_entities; ++j) {
-			ai_observe_sense(zrc, i, j, 0, TF_TensorData(brain->input_tensor));
-
-			TF_Tensor* output_tensor[] = { 0 };
-			TF_SessionRun(brain->session, 0,
-				(TF_Output[]) { brain->input },
-				(TF_Tensor*[]) { brain->input_tensor }, 1,
-				(TF_Output[]) { brain->output },
-				output_tensor, 1,
-				0, 0, 0, brain->status);
-			if (tf_brain_check_status(brain)) {
-				ai_act_sense(zrc, i, j, TF_TensorData(output_tensor[0]));
-				TF_DeleteTensor(output_tensor[0]);
-			}
-		}
-	}
+	//for (int i = 0; i < MAX_ENTITIES; ++i) {
+	//	ai_t *ai = ZRC_GET(zrc, ai, i);
+	//	if (!ai) continue;
+	//
+	//	sense_t *sense = ZRC_GET(zrc, sense, i);
+	//	if (!sense) continue;
+	//
+	//	int train_sense = (ai->train_flags & AI_TRAIN_SENSE) == AI_TRAIN_SENSE;
+	//	if (train_sense) continue;
+	//
+	//	tf_brain_t *brain = &zrc_host->sense_brain;
+	//	if (!brain->session) break;
+	//
+	//	ai_observe_sense(zrc, i, 0, TF_TensorData(brain->input_tensor));
+	//
+	//	TF_Tensor* output_tensor[] = { 0 };
+	//	TF_SessionRun(brain->session, 0,
+	//		(TF_Output[]) {
+	//		brain->input
+	//	},
+	//		(TF_Tensor*[]) {
+	//		brain->input_tensor
+	//	}, 1,
+	//		(TF_Output[]) {
+	//		brain->output
+	//	},
+	//		output_tensor, 1,
+	//		0, 0, 0, brain->status);
+	//	if (tf_brain_check_status(brain)) {
+	//		ai_act_sense(zrc, i, TF_TensorData(output_tensor[0]));
+	//		TF_DeleteTensor(output_tensor[0]);
+	//	}
+	//}
 
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
 		ai_t *ai = ZRC_GET(zrc, ai, i);
@@ -219,13 +223,13 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 		tf_brain_t *brain = &zrc_host->locomotion_brain;
 		if (!brain->session) break;
 
+		//ai_observe_locomotion_train(zrc, i, TF_TensorData(brain->input_tensor));
+		//break;
+
 		int train_locomotion = (ai->train_flags & AI_TRAIN_LOCOMOTION) == AI_TRAIN_LOCOMOTION;
-		if (train_locomotion) {
-			ai_observe_locomotion_train(zrc, i, 0, TF_TensorData(brain->input_tensor));
-		}
-		else {
-			ai_observe_locomotion(zrc, i, 0, TF_TensorData(brain->input_tensor));
-		}
+		if (train_locomotion) continue;
+
+		ai_observe_locomotion_train(zrc, i, TF_TensorData(brain->input_tensor));
 
 		TF_Tensor* output_tensor[] = { 0 };
 		TF_SessionRun(brain->session, 0,
@@ -235,11 +239,11 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 			(TF_Tensor*[]) {
 			brain->input_tensor
 		}, 1,
-				(TF_Output[]) {
-				brain->output
-			},
-				output_tensor, 1,
-					0, 0, 0, brain->status);
+			(TF_Output[]) {
+			brain->output
+		},
+			output_tensor, 1,
+			0, 0, 0, brain->status);
 		if (tf_brain_check_status(brain)) {
 			ai_act_locomotion(zrc, i, TF_TensorData(output_tensor[0]));
 			TF_DeleteTensor(output_tensor[0]);
@@ -297,9 +301,9 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.collide_flags = ~0,
 			.collide_mask = ~0,
 			.response_mask = ~0,
-			.max_speed = 150,
-			.max_spin = 2,
-			.damping = 0.05f,
+			.max_speed = 250,
+			.max_spin = 2.5f,
+			.damping = 0,
 			//.radius = 0.5f,
 			//.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
 			.radius = MEDIUM_SHIP,
@@ -309,19 +313,21 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		ZRC_SPAWN(zrc, physics, id, &physics);
 		if (!i) {
 			demo_world->player = id;
-			//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
+			ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
 		} /*else*/ {
 			ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
 			ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		}
 		visual_t visual = {
-			//.color = color_random(255)
-			.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
+			.color = color_random(255)
+			//.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
 		};
 		ZRC_SPAWN(zrc, visual, id, &visual);
 		flight_t flight = {
-			.max_thrust = 15000,
-			.max_turn = 15000
+			.max_thrust = 150,
+			.max_turn = 3,
+			.thrust_control_rate = 2,
+			.turn_control_rate = 4
 		};
 		ZRC_SPAWN(zrc, flight, id, &flight);
 		life_t life = {
@@ -359,7 +365,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 
 		ai_t ai = {
 			.train_locomotion = {
-				.goalp = {.x = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES,.y = randf() * WORLD_FACTOR * NUM_TEST_ENTITIES },
+				.goalp = {.x = randf() * WORLD_FACTOR * 4 * NUM_TEST_ENTITIES,.y = randf() * WORLD_FACTOR * 4 * NUM_TEST_ENTITIES },
 				.goala = randf() * 2 * CP_PI
 			}
 		};
@@ -370,7 +376,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 				.position = {ai.train_locomotion.goalp.x, ai.train_locomotion.goalp.y},
 				.angle = ai.train_locomotion.goala,
 				.size = {25, 25},
-				.color = color_random(255)
+				//.color = color_random(255)
+				.color = visual.color
 			};
 			ZRC_SPAWN(zrc, visual, zrc_host_put(zrc_host, guid_create()), &goal);
 		}

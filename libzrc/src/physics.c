@@ -44,11 +44,9 @@ void physics_shutdown(zrc_t *zrc) {
 }
 
 void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
-	cpFloat mass = physics->radius * 2 * CP_PI;
-	//cpFloat mass = 1;
-	cpFloat moment = cpMomentForCircle(mass, 0, physics->radius*2, cpvzero);
-	//cpFloat moment = 1;
-	physics->body = cpBodyNew(mass, moment);
+	physics->mass = physics->radius * 2 * CP_PI;
+	physics->moment = cpMomentForCircle(physics->mass, 0, physics->radius*2, cpvzero);
+	physics->body = cpBodyNew(physics->mass, physics->moment);
 	cpBodySetType(physics->body, physics->type);
 	cpBodySetVelocityUpdateFunc(physics->body, physics_velocity_update);
 	// have to call this for static objs

@@ -28,8 +28,8 @@ static int thread(void *_) {
 	// todo update_timer, accumulator, call zrc_update, remove zrc_tick
 
 	while (!quit) {
-		zrc_tick(&zrc);
 		zrc_host_tick(&zrc_host, &zrc);
+		zrc_tick(&zrc);
 
 		thrd_yield();
 	}
