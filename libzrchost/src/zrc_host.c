@@ -261,10 +261,10 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		id_t id = zrc_host_put(zrc_host, guid_create());
 		demo_world->test_entities[i] = id;
 
-		//float rfaction = randf();
-		//team_t faction = (rfaction < (1.0 / 3.0)) ? TEAM_RADIANT : ((rfaction < 2.0 / 3.0) ? TEAM_DIRE : TEAM_OTHER);
+		float rfaction = randf();
+		team_t faction = (rfaction < (1.0 / 3.0)) ? TEAM_RADIANT : ((rfaction < 2.0 / 3.0) ? TEAM_DIRE : TEAM_OTHER);
 		//faction = !i ? TEAM_RADIANT : TEAM_DIRE;
-		//ZRC_SPAWN(zrc, team, id, &faction);
+		ZRC_SPAWN(zrc, team, id, &faction);
 
 		physics_t physics = {
 			.type = CP_BODY_TYPE_DYNAMIC,
@@ -277,7 +277,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			//.radius = 0.5f,
 			//.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
 			.radius = MEDIUM_SHIP,
-			.position = {.x = randf() * SPAWN_SIZE, .y = randf() * SPAWN_SIZE },
+			.position = {.x = randfs() * SPAWN_HALF, .y = randfs() * SPAWN_HALF },
 			.angle = randf() * 2 * CP_PI
 		};
 		ZRC_SPAWN(zrc, physics, id, &physics);
@@ -285,8 +285,8 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		//ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
 		//ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		visual_t visual = {
-			.color = color_random(255)
-			//.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
+			//.color = color_random(255)
+			.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
 		};
 		ZRC_SPAWN(zrc, visual, id, &visual);
 		flight_t flight = {
@@ -325,13 +325,14 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		});
 
 		ai_t ai = {
+			//.train_flags = AI_TRAIN_SEEKALIGN,
 			.train_seekalign = {
-				.goalp = {.x = randf() * WORLD_SIZE,.y = randf() * WORLD_SIZE },
+				.goalp = {.x = randfs() * WORLD_HALF,.y = randfs() * WORLD_HALF },
 				.goala = randf() * 2 * CP_PI
 			}
 		};
 		if (i) {
-			//ai.brain_flags = AI_BRAIN_LOCOMOTION;// | AI_BRAIN_SENSE;
+			ai.brain_flags = AI_BRAIN_LOCOMOTION | AI_BRAIN_SENSE;
 		}
 		ZRC_SPAWN(zrc, ai, id, &ai);
 
@@ -344,14 +345,14 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		};
 		ZRC_SPAWN(zrc, visual, zrc_host_put(zrc_host, guid_create()), &goal);
 
-		contact_damage_t contact_damage = {
-			.damage = {
-				.from = id,
-				.health = 10
-			},
-			.onhit_id = ID_INVALID
-		};
-		ZRC_SPAWN(zrc, contact_damage, id, &contact_damage);
+		//contact_damage_t contact_damage = {
+		//	.damage = {
+		//		.from = id,
+		//		.health = 10
+		//	},
+		//	.onhit_id = ID_INVALID
+		//};
+		//ZRC_SPAWN(zrc, contact_damage, id, &contact_damage);
 	}
 }
 void demo_world_delete(demo_world_t *demo_world) {

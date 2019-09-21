@@ -11,10 +11,10 @@ typedef struct vertex {
 typedef uint32_t index_t;
 
 static float vertices[] = {
-	-1, -1,
-	-1, +1,
-	+1, -1,
-	+1, +1
+	-0.5, -0.5,
+	-0.5, +0.5,
+	+0.5, -0.5,
+	+0.5, +0.5
 };
 static uint16_t indices[] = {
 	0, 1, 3,
@@ -47,7 +47,7 @@ in vec2 texcoord;
 out vec2 f_position;
 
 void main() {
-	mat4 transform = mat4_translate(world_size.x/2, world_size.y/2, 0) * mat4_scale(world_size.x, world_size.y, 0);
+	mat4 transform = mat4_scale(world_size.x, world_size.y, 0);
 	vec4 p = transform * vec4(texcoord, 0, 1);
 	f_position = p.xy;
 	gl_Position = view_projection * p;
@@ -150,12 +150,12 @@ void draw_world_frame(draw_world_t *draw_world, const camera_t *camera) {
 	});
 	vs_uniforms_t vs_uniforms = {
 		//.view_projection = camera->view_projection,
-		.world_size = { 16384, 16384 }
+		.world_size = { WORLD_SIZE, WORLD_SIZE }
 	};
 	memcpy(&vs_uniforms.view_projection, &camera->view_projection, sizeof(vs_uniforms.view_projection));
 	fs_uniforms_t fs_uniforms = {
 		.camera_position = { camera->position[0], camera->position[1], camera->zoom },
-		.map_scale = 16
+		.map_scale = MAP_SCALE
 	};
 	sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_uniforms, sizeof(vs_uniforms));
 	sg_apply_uniforms(SG_SHADERSTAGE_FS, 0, &fs_uniforms, sizeof(fs_uniforms));

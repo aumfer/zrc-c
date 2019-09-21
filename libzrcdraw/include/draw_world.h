@@ -2,6 +2,7 @@
 
 #include <sokol_gfx.h>
 #include <camera.h>
+#include <zrc.h>
 
 typedef struct draw_world {
 	sg_buffer vertex_buffer, index_buffer;

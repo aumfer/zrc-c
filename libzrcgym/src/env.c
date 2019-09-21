@@ -105,8 +105,8 @@ void env_reset_sense(env_t *env, float *observation) {
 	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
 	if (ai) {
 		ai->brain_flags = AI_BRAIN_LOCOMOTION;
-		//ai->reward_flags = AI_REWARD_FIGHT;
-		ai->reward_flags = AI_REWARD_FOLLOWALIGN;
+		ai->reward_flags = AI_REWARD_FIGHT;
+		//ai->reward_flags = AI_REWARD_FOLLOWALIGN;
 	}
 
 	ai_observe_sense(zrc, agent, observation);

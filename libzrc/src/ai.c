@@ -25,7 +25,7 @@ void ai_delete(zrc_t *zrc, id_t id, ai_t *ai) {
 static void ai_reward_inbounds(zrc_t *zrc, id_t id, ai_t *ai) {
 	physics_t *physics = ZRC_GET(zrc, physics, id);
 	if (physics) {
-		if (physics->position.x < 0 || physics->position.x > WORLD_SIZE || physics->position.y < 0 || physics->position.y > WORLD_SIZE) {
+		if (physics->position.x < -WORLD_HALF || physics->position.x > WORLD_HALF || physics->position.y < -WORLD_HALF || physics->position.y > WORLD_HALF) {
 			ai->reward -= TICK_RATE;
 		}
 	}
@@ -69,8 +69,6 @@ static void ai_reward_fight(zrc_t *zrc, id_t id, ai_t *ai) {
 
 	//next_reward /= 1000;
 	ai->reward += next_reward;
-
-	ai->total_reward += ai->reward;
 }
 
 static void ai_reward_seekalign(zrc_t *zrc, id_t id, ai_t *ai) {
@@ -110,7 +108,6 @@ static void ai_reward_seekalign(zrc_t *zrc, id_t id, ai_t *ai) {
 	}
 
 	ai->reward = reward;
-	ai->total_reward += reward;
 }
 
 static void ai_reward_followalign(zrc_t *zrc, id_t id, ai_t *ai) {
@@ -164,7 +161,6 @@ static void ai_reward_followalign(zrc_t *zrc, id_t id, ai_t *ai) {
 	}
 
 	ai->reward = reward;
-	ai->total_reward += reward;
 }
 
 void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
@@ -179,6 +175,7 @@ void ai_update(zrc_t *zrc, id_t id, ai_t *ai) {
 	if ((ai->reward_flags & AI_REWARD_FIGHT) == AI_REWARD_FIGHT) {
 		ai_reward_fight(zrc, id, ai);
 	}
+	ai->total_reward += ai->reward;
 }
 
 void ai_observe_locomotion(zrc_t *zrc, id_t id, float *observation) {
@@ -251,6 +248,8 @@ void ai_observe_sense(zrc_t *zrc, id_t id, float *observation) {
 	cpVect front = cpvforangle(physics->angle);
 	float range = max(1, sense->range);
 
+	float distances[AI_LIDAR] = { 0 };
+
 	float lidar[AI_SENSE_ENTITY_LENGTH][AI_LIDAR] = { 0 };
 	for (int i = 0; i < sense->num_entities; ++i) {
 			id_t sid = sense->entities[i];
@@ -273,13 +272,23 @@ void ai_observe_sense(zrc_t *zrc, id_t id, float *observation) {
 				a -= CP_PI; // put front in middle of lidar
 				cpVect v = cpvforangle(a);
 				v = cpvrotate(v, front);
-				float oa = cpvdot(v, goal_front);
-				lidar[0][i] = max(lidar[0][i], oa);
+				
+				//float oa = cpvdot(v, goal_front);
+				float oa = cpvdot(front, goal_front);
+				
+				float ot = team && steam ? (*team == *steam ? +1.0f : -1.0f) : 0.0f;
 
 				cpVect dp = cpvmult(v, 0.1f); // too small = floating point issues? too big = overshoot
 				cpVect p = cpvadd(physics->position, dp);
 				float d = cpvdistsq(p, goalp);
-				lidar[1][i] = max(lidar[1][i], (goald - d));
+				float od = (goald - d);
+				
+				/*if (!distances[i] || d < distances[i])*/ {
+					distances[i] = d;
+					lidar[0][i] = max(lidar[0][i], ot);
+					lidar[1][i] = max(lidar[1][i], od);
+					//lidar[2][i] = oa;
+				}
 			}
 
 			//{
@@ -294,31 +303,25 @@ void ai_observe_sense(zrc_t *zrc, id_t id, float *observation) {
 			//}
 	}
 
-	float mins[AI_SENSE_ENTITY_LENGTH];
-	float maxs[AI_SENSE_ENTITY_LENGTH];
-	for (int i = 0; i < AI_SENSE_ENTITY_LENGTH; ++i) {
-		mins[i] = FLT_MAX;
-		maxs[i] = -FLT_MAX;
-	}
+	float min_dist = FLT_MAX;
+	float max_dist = -FLT_MAX;
 	for (int i = 0; i < AI_LIDAR; ++i) {
-		for (int j = 0; j < AI_SENSE_ENTITY_LENGTH; ++j) {
-			mins[j] = min(mins[j], lidar[j][i]);
-			maxs[j] = max(maxs[j], lidar[j][i]);
-		}
+		min_dist = min(min_dist, lidar[1][i]);
+		max_dist = max(max_dist, lidar[1][i]);
 	}
 
 	for (int i = 0; i < AI_LIDAR; ++i) {
-		// skip known normalized
-		for (int j = 1; j < AI_SENSE_ENTITY_LENGTH; ++j) {
-			double d = mins[j] != maxs[j] ? (lidar[j][i] - mins[j]) / (maxs[j] - mins[j]) : cpfclamp(lidar[j][i], -1, +1);
-			lidar[1][i] = (float)snorm(d);
-		}
+		float d = min_dist != max_dist ? (lidar[1][i] - min_dist) / (max_dist - min_dist) : cpfclamp(lidar[1][i], 0, 1);
+		lidar[1][i] = snorm(d);
 	}
 	memcpy(&observation[op], lidar, sizeof(lidar));
 	op += AI_LIDAR * AI_SENSE_ENTITY_LENGTH;
 
 	//memcpy(&observation[op], ai->sense_act, sizeof(ai->sense_act));
 	//op += AI_SENSE_ACT_LENGTH;
+
+	memcpy(&observation[op], ai->locomotion_act, sizeof(ai->locomotion_act));
+	op += AI_LOCOMOTION_ACT_LENGTH;
 
 	zrc_assert(op == AI_SENSE_OBS_LENGTH);
 
@@ -339,13 +342,13 @@ static float step(float v) {
 void ai_act_sense(zrc_t *zrc, id_t id, float *action) {
 	physics_t *physics = ZRC_GET_READ(zrc, physics, id);
 
-	//if (zrc->frame > 3/TICK_RATE) {
-	//	cast_t cast = {
-	//		.caster_ability = 1,
-	//		.cast_flags = CAST_WANTCAST,
-	//	};
-	//	ZRC_SEND(zrc, cast, id, &cast);
-	//}
+	if (zrc->frame > 3/TICK_RATE) {
+		cast_t cast = {
+			.caster_ability = 1,
+			.cast_flags = CAST_WANTCAST,
+		};
+		ZRC_SEND(zrc, cast, id, &cast);
+	}
 
 	ai_t *ai = ZRC_GET_WRITE(zrc, ai, id);
 	memcpy(ai->sense_act, action, sizeof(ai->sense_act));

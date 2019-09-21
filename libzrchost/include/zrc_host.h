@@ -12,7 +12,8 @@ KHASH_INIT(ehash, guid_t, char, 0, guid_hash_func, guid_eq_func)
 #define TEAM_OTHER 4
 
 #define NUM_TEST_ENTITIES 16
-#define SPAWN_SIZE (WORLD_SIZE/2)
+#define SPAWN_SIZE (WORLD_SIZE/4)
+#define SPAWN_HALF (SPAWN_SIZE/2)
 
 typedef struct demo_world {
 	id_t test_entities[NUM_TEST_ENTITIES];

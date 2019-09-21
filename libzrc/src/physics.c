@@ -13,6 +13,7 @@ static const cpVect BOX_VERTS[] = {
 static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
 static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
 static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt);
+static void physics_position_update(cpBody *body, cpFloat dt);
 
 void physics_startup(zrc_t *zrc) {
 	//printf("physics %zu\n", sizeof(zrc->physics));
@@ -71,6 +72,7 @@ void physics_create(zrc_t *zrc, id_t id, physics_t *physics) {
 	physics->body = cpBodyNew(physics->mass, physics->moment);
 	cpBodySetType(physics->body, physics->type);
 	cpBodySetVelocityUpdateFunc(physics->body, physics_velocity_update);
+	cpBodySetPositionUpdateFunc(physics->body, physics_position_update);
 	// have to call this for static objs
 	physics_begin(zrc, id, physics);
 
@@ -206,4 +208,19 @@ static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat dampin
 			}
 		}
 	}
+}
+static void physics_position_update(cpBody *body, cpFloat dt) {
+	id_t id = (id_t)cpBodyGetUserData(body);
+
+	cpSpace *space = cpBodyGetSpace(body);
+	zrc_t *zrc = cpSpaceGetUserData(space);
+	physics_t *physics = ZRC_GET_WRITE(zrc, physics, id);
+
+	if (physics) {
+		cpVect position = cpBodyGetPosition(body);
+		cpVect wrap = cpv(fmodf(position.x, WORLD_HALF), fmodf(position.y, WORLD_HALF));
+		cpBodySetPosition(body, wrap);
+	}
+
+	cpBodyUpdatePosition(body, dt);
 }

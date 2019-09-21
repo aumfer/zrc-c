@@ -18,6 +18,7 @@ extern "C" {
 #include <color.h>
 //#undef NDEBUG
 #include <assert.h>
+#include <zmath.h>
 
 typedef uint16_t id_t;
 #define ID_INVALID ((id_t)-1)
@@ -28,10 +29,12 @@ typedef uint16_t id_t;
 #define MASK_FRAMES (MAX_FRAMES-1)
 
 #define TICK_RATE (1.0f/60.0f)
-#define WORLD_SIZE 1024
+#define WORLD_SIZE 2048
+#define WORLD_HALF (WORLD_SIZE/2)
 #define MAP_SCALE 16
 
 #define randf() ((float)rand() / RAND_MAX)
+#define randfs() (snorm(randf()))
 
 #define zrc_assert assert
 
@@ -303,8 +306,8 @@ typedef struct relationship {
 #define AI_LOCOMOTION_ENTITY_LENGTH 2 // thrust, turn
 #define AI_LOCOMOTION_OBS_LENGTH ((AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)
 #define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
-#define AI_SENSE_ENTITY_LENGTH 2 // distance, align
-#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH))//+AI_SENSE_ACT_LENGTH)
+#define AI_SENSE_ENTITY_LENGTH 2 // team, distance, alignment
+#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)//+AI_SENSE_ACT_LENGTH)
 
 typedef enum ai_brain_flags {
 	AI_BRAIN_NONE = 0,
