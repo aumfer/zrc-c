@@ -7,7 +7,7 @@ void gym_create(gym_t *gym) {
 	//puts("zrc_host_startup");
 	zrc_host_startup(&gym->zrc_host, &gym->zrc);
 
-	gym->agent = gym->zrc_host.demo_world.player;
+	gym->agent = gym->zrc_host.demo_world.test_entities[rand() & (NUM_TEST_ENTITIES-1-1/*player*/)];
 }
 void gym_delete(gym_t *gym) {
 	//puts("zrc_host_shutdown");

@@ -25,7 +25,7 @@ static int thread(void *_) {
 	zrc_startup(&zrc);
 	zrc_host_startup(&zrc_host, &zrc);
 
-	zrc_draw.control.unit = zrc_host.demo_world.player;
+	zrc_draw.control.unit = zrc_host.demo_world.test_entities[0];
 
 	timer_create(&timer);
 

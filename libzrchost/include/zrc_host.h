@@ -11,8 +11,11 @@ KHASH_INIT(ehash, guid_t, char, 0, guid_hash_func, guid_eq_func)
 #define TEAM_DIRE 2
 #define TEAM_OTHER 4
 
+#define NUM_TEST_ENTITIES 16
+#define SPAWN_SIZE (WORLD_SIZE/2)
+
 typedef struct demo_world {
-	id_t player;
+	id_t test_entities[NUM_TEST_ENTITIES];
 } demo_world_t;
 
 typedef struct zrc_host {

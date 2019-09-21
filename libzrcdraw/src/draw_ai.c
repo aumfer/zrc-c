@@ -121,7 +121,6 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 	for (int i = 0; i < AI_LIDAR*AI_SENSE_ENTITY_LENGTH; i += AI_SENSE_ENTITY_LENGTH) {
 		sense_lidar[i + 0] = (uint8_t)(unorm(ai->sense_obs[i+0]) * 255);
 		sense_lidar[i + 1] = (uint8_t)(unorm(ai->sense_obs[i+1]) * 255);
-		sense_lidar[i + 2] = (uint8_t)(unorm(ai->sense_obs[i+2]) * 255);
 	}
 
 	sg_update_image(draw_ai->sense_image, &(sg_image_content) {
@@ -156,7 +155,7 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 			.index_buffer = draw_ai->index_buffer,
 			.fs_images[0] = draw_ai->sense_image
 	});
-	sg_apply_viewport(0, 16, sapp_width(), 24, true);
+	sg_apply_viewport(0, 16, sapp_width(), 16, true);
 
 	sg_draw(0, _countof(indices), 1);
 

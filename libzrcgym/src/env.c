@@ -88,10 +88,12 @@ void env_reset_locomotion(env_t *env, float *observation) {
 
 	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
 	if (ai) {
-		ai->train_flags |= AI_TRAIN_LOCOMOTION;
+		ai->brain_flags = 0;
+		ai->reward_flags = AI_REWARD_SEEKALIGN;
+		ai->train_flags = AI_TRAIN_SEEKALIGN;
 	}
 
-	ai_observe_locomotion_train(zrc, agent, observation);
+	ai_observe_locomotion_seekalign(zrc, agent, observation);
 }
 
 void env_reset_sense(env_t *env, float *observation) {
@@ -102,7 +104,9 @@ void env_reset_sense(env_t *env, float *observation) {
 
 	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
 	if (ai) {
-		ai->train_flags |= AI_TRAIN_SENSE;
+		ai->brain_flags = AI_BRAIN_LOCOMOTION;
+		//ai->reward_flags = AI_REWARD_FIGHT;
+		ai->reward_flags = AI_REWARD_FOLLOWALIGN;
 	}
 
 	ai_observe_sense(zrc, agent, observation);
@@ -145,7 +149,7 @@ void env_step_locomotion(env_t *env, float *action, float *observation, float *r
 	}
 
 	//printf("%u obs", zrc.frame);
-	ai_observe_locomotion_train(zrc, agent, observation);
+	ai_observe_locomotion_seekalign(zrc, agent, observation);
 	//puts(" done");
 
 	if (*done) {

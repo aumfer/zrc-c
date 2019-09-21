@@ -28,6 +28,7 @@ typedef uint16_t id_t;
 #define MASK_FRAMES (MAX_FRAMES-1)
 
 #define TICK_RATE (1.0f/60.0f)
+#define WORLD_SIZE 1024
 #define MAP_SCALE 16
 
 #define randf() ((float)rand() / RAND_MAX)
@@ -302,17 +303,32 @@ typedef struct relationship {
 #define AI_LOCOMOTION_ENTITY_LENGTH 2 // thrust, turn
 #define AI_LOCOMOTION_OBS_LENGTH ((AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)
 #define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
-#define AI_SENSE_ENTITY_LENGTH 3 // distance, align, team
-#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH)+AI_SENSE_ACT_LENGTH)
+#define AI_SENSE_ENTITY_LENGTH 2 // distance, align
+#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH))//+AI_SENSE_ACT_LENGTH)
 
-typedef enum ai_train_flags {
+typedef enum ai_brain_flags {
+	AI_BRAIN_NONE = 0,
+	AI_BRAIN_LOCOMOTION = 1,
+	AI_BRAIN_SENSE = 2
+} ai_brain_flags_t;
+
+typedef enum ai_reward_flags {
+	AI_REWARD_NONE = 0,
+	AI_REWARD_SEEKALIGN = 1,
+	AI_REWARD_FOLLOWALIGN = 2,
+	AI_REWARD_FIGHT = 4,
+} ai_reward_flags_t;
+
+// hard-coded observations
+typedef enum a_train_flags {
 	AI_TRAIN_NONE = 0,
-	AI_TRAIN_LOCOMOTION = 1,
-	AI_TRAIN_SENSE = 2
+	AI_TRAIN_SEEKALIGN = 1
 } ai_train_flags_t;
 
 typedef struct ai {
 	int done;
+	ai_brain_flags_t brain_flags;
+	ai_reward_flags_t reward_flags;
 	ai_train_flags_t train_flags;
 	float total_reward;
 	float reward;
@@ -320,7 +336,7 @@ typedef struct ai {
 	struct {
 		cpVect goalp;
 		float goala;
-	} train_locomotion;
+	} train_seekalign;
 
 	float sense_obs[AI_SENSE_OBS_LENGTH];
 	float sense_act[AI_SENSE_ACT_LENGTH];
@@ -606,7 +622,7 @@ void ai_create(zrc_t *, id_t, ai_t *);
 void ai_delete(zrc_t *, id_t, ai_t *);
 void ai_update(zrc_t *, id_t, ai_t *);
 void ai_observe_locomotion(zrc_t *, id_t id, float *numpyarray);
-void ai_observe_locomotion_train(zrc_t *, id_t id, float *numpyarray);
+void ai_observe_locomotion_seekalign(zrc_t *, id_t id, float *numpyarray);
 void ai_act_locomotion(zrc_t *, id_t id, float *numpyarray);
 void ai_observe_sense(zrc_t *zrc, id_t id, float *observation);
 void ai_act_sense(zrc_t *zrc, id_t id, float *action);
