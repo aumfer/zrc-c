@@ -106,7 +106,8 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		font_print(&draw->font, ctime, (float[2]) { [0] = sapp_width() - 100.0f, [1] = sapp_height() - 21.0f - (20*i) }, 0xffcccccc);
 	}
 
-	float extra = draw->not_real_time ? 0 : (float)stm_sec(stm_since(zrc->timer.time));
+	//float extra = draw->not_real_time ? 0 : (float)stm_sec(stm_since(zrc->timer.time));
+	float extra = 0; //todo
 	draw_world_frame(&draw->draw_world, camera);
 	draw_locomotion_frame(&draw->draw_locomotion, zrc, camera, control, dt);
 	draw_ai_frame(&draw->draw_ai, zrc, camera, control, dt);

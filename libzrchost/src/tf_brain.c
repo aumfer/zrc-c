@@ -3,11 +3,12 @@
 #include <io.h>
 
 void tf_brain_create(tf_brain_t *tf_brain, const char *location, int num_input, int num_output) {
+	//TF_RegisterLogListener(puts);
 	tf_brain->num_input = num_input;
 	tf_brain->num_output = num_output;
 	tf_brain->status = TF_NewStatus();
 	tf_brain->graph = TF_NewGraph();
-	//TF_RegisterLogListener(puts);
+	tf_brain->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { 1, num_input }, 2, num_input * sizeof(float));
 
 	char file[_MAX_PATH];
 	sprintf_s(file, sizeof(file), "%ssaved_model.pb", location);
@@ -57,7 +58,7 @@ void tf_brain_create(tf_brain_t *tf_brain, const char *location, int num_input, 
 	tf_brain->input.index = 0;
 	tf_brain->output.oper = TF_GraphOperationByName(tf_brain->graph, "pi/add");
 	tf_brain->output.index = 0;
-	tf_brain->input_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { 1, num_input }, 2, num_input * sizeof(float));
+	
 	//tf_brain->output_tensor = TF_AllocateTensor(TF_FLOAT, (int64_t[]) { AI_ACTION_LENGTH }, 1, AI_ACTION_LENGTH * sizeof(float));
 
 	//TF_Operation *init_op = TF_GraphOperationByName(tf_brain->graph, "init");

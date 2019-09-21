@@ -39,6 +39,12 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 	id_t id2 = (id_t)cpShapeGetUserData(s2);
 	id_t hit_id = id == id1 ? id2 : id1;
 
+	team_t *team = ZRC_GET(zrc, team, id);
+	team_t *hit_team = ZRC_GET(zrc, team, hit_id);
+	if (team && hit_team && *team == *hit_team) {
+		return;
+	}
+
 	if (ZRC_HAS(zrc, contact_damage, hit_id)) {
 		// if we hit another contact damage
 		physics_t *physics = ZRC_GET(zrc, physics, id);
@@ -48,7 +54,7 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 			float hit_speed = cpvlengthsq(hit_physics->velocity);
 			if (speed < hit_speed) {
 				// fastest wins
-				//return;
+				return;
 			}
 		}
 	}

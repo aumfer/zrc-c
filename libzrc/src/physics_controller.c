@@ -38,10 +38,10 @@ void physics_controller_update(zrc_t *zrc, id_t id, physics_controller_t *physic
 
 		physics_controller->pivot = cpPivotJointNew2(physics_controller->body, physics->body, cpvzero, cpvzero);
 		cpConstraintSetMaxBias(physics_controller->pivot, 0);
-		//cpConstraintSetMaxForce(physics_controller->pivot, physics->max_speed * physics->mass);
+		cpConstraintSetMaxForce(physics_controller->pivot, physics->max_speed * physics->mass * 10);
 		physics_controller->gear = cpGearJointNew(physics_controller->body, physics->body, 0, 1);
 		cpConstraintSetMaxBias(physics_controller->gear, 0);
-		//cpConstraintSetMaxForce(physics_controller->gear, physics->max_spin * physics->moment);
+		cpConstraintSetMaxForce(physics_controller->gear, physics->max_spin * physics->moment * 10);
 		//physics_controller->pivot = cpDampedSpringNew(physics_controller->body, physics->body, cpvzero, cpvzero, 0, 5, 3);
 		//physics_controller->gear = cpDampedRotarySpringNew(physics_controller->body, physics->body, 0, 5, 3);
 

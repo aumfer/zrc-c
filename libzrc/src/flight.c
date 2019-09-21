@@ -28,7 +28,9 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	// noreverse
 	thrust.x = max(0, thrust.x);
 	// halfstrafe
-	thrust.y = thrust.y / 2;
+	//thrust.y = thrust.y / 2;
+	// nostrafe
+	thrust.y = 0;
 	thrust = cpvclamp(thrust, 1);
 	thrust = cpvrotate(thrust, cpvforangle(physics->angle));
 

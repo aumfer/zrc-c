@@ -166,7 +166,7 @@ void env_step_sense(env_t *env, float *action, float *observation, float *reward
 
 	for (int i = 0; i < 1; ++i) {
 		//printf("%u act", zrc.frame);
-		ai_act_locomotion(zrc, agent, action);
+		ai_act_sense(zrc, agent, action);
 		//puts(" done");
 		//printf("%u update", zrc.frame);
 		gym_update(gym);

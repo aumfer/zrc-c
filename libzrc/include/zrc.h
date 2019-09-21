@@ -16,7 +16,7 @@ extern "C" {
 #include <moving_average.h>
 #include <timer.h>
 #include <color.h>
-#undef NDEBUG
+//#undef NDEBUG
 #include <assert.h>
 
 typedef uint16_t id_t;
@@ -26,10 +26,6 @@ typedef uint16_t id_t;
 #define MASK_ENTITIES (MAX_ENTITIES-1)
 #define MAX_FRAMES (64/2)
 #define MASK_FRAMES (MAX_FRAMES-1)
-
-// todo use per-type message counts to save space
-#define MAX_MESSAGES (64/2)
-#define MASK_MESSAGES (MAX_MESSAGES-1)
 
 #define TICK_RATE (1.0f/60.0f)
 #define MAP_SCALE 16
@@ -88,6 +84,8 @@ typedef struct physics {
 	unsigned force_index;
 } physics_t;
 
+#define max_physics_force_messages 8
+
 typedef struct physics_force {
 	cpVect force;
 	float torque;
@@ -101,6 +99,8 @@ typedef struct physics_controller {
 	unsigned velocity_index;
 } physics_controller_t;
 
+#define max_physics_controller_velocity_messages 4
+
 typedef struct physics_controller_velocity {
 	cpVect velocity;
 	float angular_velocity;
@@ -113,6 +113,8 @@ typedef struct visual {
 	float position[2];
 	float angle;
 } visual_t;
+
+#define max_flight_thrust_messages 4
 
 typedef struct flight_thrust {
 	cpVect thrust;
@@ -178,11 +180,15 @@ typedef struct ability {
 	float rage;
 } ability_t;
 
+#define max_damage_messages 64
+
 typedef struct damage {
 	id_t from;
 	ability_id_t ability;
 	float health;
 } damage_t;
+
+#define max_damage_dealt_messages 64
 
 typedef struct damage_dealt {
 	id_t to;
@@ -207,6 +213,8 @@ typedef struct caster_ability {
 
 typedef uint8_t caster_ability_id_t;
 #define CASTER_ABILITY_INVALID ((caster_ability_id_t)-1)
+
+#define max_cast_messages 8
 
 typedef struct cast {
 	caster_ability_id_t caster_ability;
@@ -241,14 +249,18 @@ typedef struct contact_damage {
 	ttl_t ttl;
 } contact_damage_t;
 
+#define max_locomotion_behavior_messages 1
+
 typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point);
 
 typedef struct locomotion {
-	locomotion_behavior_t behaviors[1]; // temp
+	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
 	int num_behaviors;
 
 	unsigned locomotion_behavior_index;
 } locomotion_t;
+
+#define max_seek_to_messages 1
 
 typedef struct seek_to {
 	cpVect point;
@@ -289,9 +301,9 @@ typedef struct relationship {
 #define AI_LOCOMOTION_ACT_LENGTH 3 // thrust.x, thrust.y, turn
 #define AI_LOCOMOTION_ENTITY_LENGTH 2 // thrust, turn
 #define AI_LOCOMOTION_OBS_LENGTH ((AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)
-#define AI_SENSE_ENTITY_LENGTH 2 // distance, team
-#define AI_SENSE_OBS_LENGTH (AI_LIDAR*AI_SENSE_ENTITY_LENGTH)
 #define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
+#define AI_SENSE_ENTITY_LENGTH 3 // distance, align, team
+#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH)+AI_SENSE_ACT_LENGTH)
 
 typedef enum ai_train_flags {
 	AI_TRAIN_NONE = 0,
@@ -322,6 +334,8 @@ typedef struct ai {
 
 typedef uint32_t team_t;
 
+#define max_got_kill_messages 64
+
 typedef struct zrc {
 	// static
 	ability_t ability[ABILITY_COUNT];
@@ -345,29 +359,26 @@ typedef struct zrc {
 
 	// transient // todo volatile?
 	unsigned num_damage[MAX_ENTITIES];
-	damage_t damage[MAX_ENTITIES][MAX_MESSAGES];
+	damage_t damage[MAX_ENTITIES][max_damage_messages];
 	unsigned num_physics_force[MAX_ENTITIES];
-	physics_force_t physics_force[MAX_ENTITIES][MAX_MESSAGES];
+	physics_force_t physics_force[MAX_ENTITIES][max_physics_force_messages];
 	unsigned num_physics_controller_velocity[MAX_ENTITIES];
-	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][MAX_MESSAGES];
+	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][max_physics_controller_velocity_messages];
 	unsigned num_cast[MAX_ENTITIES];
-	cast_t cast[MAX_ENTITIES][MAX_MESSAGES];
+	cast_t cast[MAX_ENTITIES][max_cast_messages];
 	unsigned num_locomotion_behavior[MAX_ENTITIES];
-	locomotion_behavior_t locomotion_behavior[MAX_ENTITIES][MAX_MESSAGES];
+	locomotion_behavior_t locomotion_behavior[MAX_ENTITIES][max_locomotion_behavior_messages];
 	unsigned num_flight_thrust[MAX_ENTITIES];
-	flight_thrust_t flight_thrust[MAX_ENTITIES][MAX_MESSAGES];
+	flight_thrust_t flight_thrust[MAX_ENTITIES][max_flight_thrust_messages];
 	unsigned num_seek_to[MAX_ENTITIES];
-	seek_to_t seek_to[MAX_ENTITIES][MAX_MESSAGES];
+	seek_to_t seek_to[MAX_ENTITIES][max_seek_to_messages];
 	unsigned num_damage_dealt[MAX_ENTITIES];
-	damage_dealt_t damage_dealt[MAX_ENTITIES][MAX_MESSAGES];
+	damage_dealt_t damage_dealt[MAX_ENTITIES][max_damage_dealt_messages];
 	unsigned num_got_kill[MAX_ENTITIES];
-	id_t got_kill[MAX_ENTITIES][MAX_MESSAGES];
+	id_t got_kill[MAX_ENTITIES][max_got_kill_messages];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
-	timer_t timer;
-	double accumulator;
-	moving_average_t tick_fps;
 	moving_average_t update_fps;
 
 	void *user;
@@ -400,12 +411,12 @@ registry_t zrc_components(int count, ...);
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
 	for (unsigned i = (*(start)); i < (zrc)->num_##name##[(id)&MASK_ENTITIES]; ++i) { \
-		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][i&MASK_MESSAGES]; \
+		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][i&(max_##name##_messages-1)]; \
 		code; \
 		++(*(start)); \
 	}
 
-#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->num_##name##[(id)&MASK_ENTITIES]++)&MASK_MESSAGES] = *(val)
+#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->num_##name##[(id)&MASK_ENTITIES]++)&(max_##name##_messages-1)] = *(val)
 
 // components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \
@@ -509,7 +520,6 @@ void zrc_##name##_update(zrc_t *zrc, id_t id, ##name##_t *##name##) { \
 
 void zrc_startup(zrc_t *);
 void zrc_shutdown(zrc_t *);
-void zrc_tick(zrc_t *);
 void zrc_update(zrc_t *);
 
 void registry_startup(zrc_t *);

@@ -22,16 +22,12 @@ typedef struct zrc_host {
 	tf_brain_t locomotion_brain;
 	tf_brain_t sense_brain;
 
-	timer_t timer;
-	moving_average_t tick_fps;
-	double accumulator;
 	unsigned frame;
 } zrc_host_t;
 
 void zrc_host_startup(zrc_host_t *, zrc_t *);
 void zrc_host_shutdown(zrc_host_t *);
 
-void zrc_host_tick(zrc_host_t *, zrc_t *);
 void zrc_host_update(zrc_host_t *, zrc_t *);
 
 id_t zrc_host_put(zrc_host_t *, guid_t);

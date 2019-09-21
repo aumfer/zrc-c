@@ -1,6 +1,15 @@
 #include <zrc.h>
 #include <stdio.h>
 
+#define radians(d) ((d)*CP_PI/180)
+
+static const cpVect BOX_VERTS[] = {
+	{+0.5, -0.5},
+	{+0.5, +0.5},
+	{-0.5, +0.5},
+	{-0.5, -0.5}
+};
+
 static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
 static void physics_collision_separate(cpArbiter *arb, cpSpace *space, cpDataPointer userData);
 static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt);
@@ -16,6 +25,19 @@ void physics_startup(zrc_t *zrc) {
 	zrc->collision_handler = cpSpaceAddDefaultCollisionHandler(zrc->space);
 	zrc->collision_handler->beginFunc = physics_collision_begin;
 	zrc->collision_handler->separateFunc = physics_collision_separate;
+
+	//cpBody *body = cpSpaceGetStaticBody(zrc->space);
+	//cpBodySetUserData(body, (cpDataPointer)ID_INVALID);
+	//for (int i = 0; i < _countof(BOX_VERTS); ++i) {
+	//	cpShape *world = cpBoxShapeNew2(body, cpBBNew(1024 * BOX_VERTS[i].x, 1024 * BOX_VERTS[i].y, 1024 * BOX_VERTS[i].x + 1, 1024 * BOX_VERTS[i].y + 1), 0);
+	//	cpShapeSetUserData(world, (cpDataPointer)ID_INVALID);
+	//	cpShapeFilter filter;
+	//	filter.group = ID_INVALID;
+	//	filter.categories = ~0;
+	//	filter.mask = ~0;
+	//	cpShapeSetFilter(world, filter);
+	//	cpSpaceAddShape(zrc->space, world);
+	//}
 }
 static physics_deletebody(cpBody *body, void *data) {
 #if _DEBUG
@@ -150,7 +172,7 @@ static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPoin
 	if (physics1 && physics2) {
 		respond = physics1->response_mask & physics2->response_mask;
 	} else {
-		respond = cpFalse;
+		respond = cpTrue;
 	}
 
 	return respond;

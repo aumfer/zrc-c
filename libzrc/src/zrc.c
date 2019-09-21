@@ -39,9 +39,9 @@ void zrc_startup(zrc_t *zrc) {
 	zrc->ability[ABILITY_TUR_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
 		.range = 250,
-		.cooldown = 2.0f / 3.0f / 2.0f,
-		.channel = 1.0f / 3.0f / 2.0f,
-		.mana = 10
+		.cooldown = 2.0f / 3.0f,
+		.channel = 1.0f / 3.0f,
+		.mana = 20
 	};
 	zrc->ability[ABILITY_BLINK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
@@ -52,10 +52,10 @@ void zrc_startup(zrc_t *zrc) {
 	};
 	zrc->ability[ABILITY_FIX_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
-		.range = 250,
-		.cooldown = 2.0f / 3.0f,
-		.channel = 1.0f / 3.0f,
-		.mana = 20
+		.range = 150,
+		.cooldown = 2.0f / 3.0f / 2,
+		.channel = 1.0f / 3.0f / 2,
+		.mana = 10
 	};
 	zrc->ability[ABILITY_TARGET_NUKE] = (ability_t) {
 		.target_flags = ABILITY_TARGET_UNIT,
@@ -64,8 +64,6 @@ void zrc_startup(zrc_t *zrc) {
 		.channel = 2.0f,
 		.mana = 30
 	};
-
-	timer_create(&zrc->timer);
 }
 void zrc_shutdown(zrc_t *zrc) {
 	ai_shutdown(zrc);
@@ -82,26 +80,6 @@ void zrc_shutdown(zrc_t *zrc) {
 	physics_shutdown(zrc);
 	flight_shutdown(zrc);
 	registry_shutdown(zrc);
-}
-
-void zrc_tick(zrc_t *zrc) {
-	timer_update(&zrc->timer);
-
-	double dts = stm_sec(zrc->timer.dt);
-	moving_average_update(&zrc->tick_fps, (float)dts);
-
-	zrc->accumulator += dts;
-	int frames = 0;
-	while (zrc->accumulator >= TICK_RATE) {
-		zrc->accumulator -= TICK_RATE;
-		++frames;
-		
-		zrc_update(zrc);
-	}
-
-	if (frames > 1) {
-		//printf("stall %d frames\n", frames-1);
-	}
 }
 
 void zrc_update(zrc_t *zrc) {

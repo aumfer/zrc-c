@@ -44,11 +44,17 @@ void main() {
 });
 
 void draw_ai_create(draw_ai_t *draw_ai) {
-	draw_ai->image = sg_make_image(&(sg_image_desc) {
+	draw_ai->locomotion_image = sg_make_image(&(sg_image_desc) {
 		.width = AI_LIDAR,
-		.height = 2,
+		.height = AI_LOCOMOTION_ENTITY_LENGTH,
 		.usage = SG_USAGE_STREAM,
 		.pixel_format = SG_PIXELFORMAT_R8
+	});
+	draw_ai->sense_image = sg_make_image(&(sg_image_desc) {
+		.width = AI_LIDAR,
+			.height = AI_SENSE_ENTITY_LENGTH,
+			.usage = SG_USAGE_STREAM,
+			.pixel_format = SG_PIXELFORMAT_R8
 	});
 
 	draw_ai->vertex_buffer = sg_make_buffer(&(sg_buffer_desc) {
@@ -98,17 +104,30 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 	const ai_t *ai = ZRC_GET(zrc, ai, id);
 	if (!ai) return;
 
-	uint8_t lidar[AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH];
+	uint8_t locomotion_lidar[AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH];
 	for (int i = 0; i < AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH; i += AI_LOCOMOTION_ENTITY_LENGTH) {
-		float o[] = { ai->locomotion_obs[i], ai->locomotion_obs[i+1] };
-		lidar[i+0] = (uint8_t)(unorm(o[0]) * 255);
-		lidar[i+1] = (uint8_t)(unorm(o[1]) * 255);
+		locomotion_lidar[i+0] = (uint8_t)(unorm(ai->locomotion_obs[i+0]) * 255);
+		locomotion_lidar[i+1] = (uint8_t)(unorm(ai->locomotion_obs[i+1]) * 255);
 	}
 
-	sg_update_image(draw_ai->image, &(sg_image_content) {
+	sg_update_image(draw_ai->locomotion_image, &(sg_image_content) {
 		.subimage[0][0] = {
-			.size = sizeof(lidar),
-			.ptr = lidar
+			.size = sizeof(locomotion_lidar),
+			.ptr = locomotion_lidar
+		}
+	});
+
+	uint8_t sense_lidar[AI_LIDAR*AI_SENSE_ENTITY_LENGTH];
+	for (int i = 0; i < AI_LIDAR*AI_SENSE_ENTITY_LENGTH; i += AI_SENSE_ENTITY_LENGTH) {
+		sense_lidar[i + 0] = (uint8_t)(unorm(ai->sense_obs[i+0]) * 255);
+		sense_lidar[i + 1] = (uint8_t)(unorm(ai->sense_obs[i+1]) * 255);
+		sense_lidar[i + 2] = (uint8_t)(unorm(ai->sense_obs[i+2]) * 255);
+	}
+
+	sg_update_image(draw_ai->sense_image, &(sg_image_content) {
+		.subimage[0][0] = {
+			.size = sizeof(sense_lidar),
+			.ptr = sense_lidar
 		}
 	});
 
@@ -124,12 +143,22 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 			[0] = draw_ai->vertex_buffer
 		},
 			.index_buffer = draw_ai->index_buffer,
-			.fs_images[0] = draw_ai->image
+			.fs_images[0] = draw_ai->locomotion_image
 	});
 	sg_apply_viewport(0, 0, sapp_width(), 16, true);
 
-	int num_elements = _countof(indices);
-	sg_draw(0, num_elements, 1);
+	sg_draw(0, _countof(indices), 1);
+
+	sg_apply_bindings(&(sg_bindings) {
+		.vertex_buffers = {
+			[0] = draw_ai->vertex_buffer
+		},
+			.index_buffer = draw_ai->index_buffer,
+			.fs_images[0] = draw_ai->sense_image
+	});
+	sg_apply_viewport(0, 16, sapp_width(), 24, true);
+
+	sg_draw(0, _countof(indices), 1);
 
 	sg_end_pass();
 	sg_commit();

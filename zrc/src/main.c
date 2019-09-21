@@ -16,6 +16,8 @@ static zrc_t zrc;
 static zrc_host_t zrc_host;
 static zrc_draw_t zrc_draw;
 static thrd_t thrd;
+static timer_t timer;
+static float accumulator;
 
 static int quit;
 
@@ -25,11 +27,18 @@ static int thread(void *_) {
 
 	zrc_draw.control.unit = zrc_host.demo_world.player;
 
-	// todo update_timer, accumulator, call zrc_update, remove zrc_tick
+	timer_create(&timer);
 
 	while (!quit) {
-		zrc_host_tick(&zrc_host, &zrc);
-		zrc_tick(&zrc);
+		timer_update(&timer);
+		accumulator += (float)stm_sec(timer.dt);
+
+		while (accumulator >= TICK_RATE) {
+			accumulator -= TICK_RATE;
+
+			zrc_update(&zrc);
+			zrc_host_update(&zrc_host, &zrc);
+		}
 
 		thrd_yield();
 	}
@@ -49,7 +58,7 @@ static void init(void) {
 }
 
 static void frame(void) {
-	if (zrc.timer.time > 0) {
+	if (zrc.frame) {
 		zrc_draw_frame(&zrc_draw, &zrc);
 	}
 }
