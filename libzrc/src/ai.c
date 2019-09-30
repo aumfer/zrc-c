@@ -42,7 +42,7 @@ static float ai_reward_fight(const zrc_t *zrc, id_t id, ai_t *ai) {
 
 	// reward for damage dealt
 	const damage_dealt_t *damage_dealt;
-	ZRC_RECEIVE(zrc, damage_dealt, id, &ai->damage_dealt_index, damage_dealt, {
+	ZRC_RECEIVE(zrc, damage_dealt, id, &ai->recv_damage_dealt, damage_dealt, {
 		const team_t *tteam = ZRC_GET(zrc, team, damage_dealt->to);
 		const life_t *tlife = ZRC_GET(zrc, life, damage_dealt->to);
 		if (team && tteam && *team == *tteam) {
@@ -53,7 +53,7 @@ static float ai_reward_fight(const zrc_t *zrc, id_t id, ai_t *ai) {
 	});
 
 	const id_t *killed;
-	ZRC_RECEIVE(zrc, got_kill, id, &ai->got_kill_index, killed, {
+	ZRC_RECEIVE(zrc, got_kill, id, &ai->recv_got_kill, killed, {
 		const team_t *tteam = ZRC_GET(zrc, team, *killed);
 		if (team && tteam && *team == *tteam) {
 			reward -= 1000;
@@ -64,7 +64,7 @@ static float ai_reward_fight(const zrc_t *zrc, id_t id, ai_t *ai) {
 
 	if (life) {
 		const damage_t *damage;
-		ZRC_RECEIVE(zrc, damage, id, &ai->damage_taken_index, damage, {
+		ZRC_RECEIVE(zrc, damage, id, &ai->recv_damage_taken, damage, {
 			reward -= damage->health * (1 / max(0.1f, life->health / life->max_health));
 		});
 	}

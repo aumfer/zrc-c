@@ -1,8 +1,19 @@
 #pragma once
 
-typedef struct guid {
-	int a, b, c, d;
+#include <stdint.h>
+
+#define GUID_BYTES 16
+
+typedef union guid {
+	struct {
+		uint32_t a, b, c, d;
+	};
+	struct {
+		uint8_t bytes[GUID_BYTES];
+	};
 } guid_t;
+
+static_assert(sizeof(guid_t) == GUID_BYTES, "invalid guid");
 
 extern const guid_t GUID_EMPTY;
 

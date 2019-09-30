@@ -20,7 +20,7 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	float turn = 0;
 
 	flight_thrust_t *flight_thrust;
-	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->thrust_index, flight_thrust, {
+	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->recv_thrust, flight_thrust, {
 		thrust = cpvadd(thrust, flight_thrust->thrust);
 		turn += flight_thrust->turn;
 	});

@@ -50,7 +50,7 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	locomotion->num_behaviors = 0;
 
 	locomotion_behavior_t *locomotion_behavior;
-	ZRC_RECEIVE(zrc, locomotion_behavior, id, &locomotion->locomotion_behavior_index, locomotion_behavior, {
+	ZRC_RECEIVE(zrc, locomotion_behavior, id, &locomotion->recv_locomotion_behavior, locomotion_behavior, {
 		locomotion->behaviors[locomotion->num_behaviors++] = *locomotion_behavior;
 	});
 

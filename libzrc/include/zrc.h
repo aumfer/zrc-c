@@ -41,6 +41,9 @@ typedef uint16_t id_t;
 
 typedef struct zrc zrc_t;
 
+typedef uint8_t send_t;
+typedef uint8_t recv_t;
+
 typedef enum zrc_component {
 	zrc_registry,
 	zrc_physics,
@@ -88,7 +91,7 @@ typedef struct physics {
 	cpBody *body;
 	cpShape *shape;
 
-	unsigned force_index;
+	recv_t recv_force;
 } physics_t;
 
 #define max_physics_force_messages 8
@@ -103,7 +106,7 @@ typedef struct physics_controller {
 	cpConstraint *pivot;
 	cpConstraint *gear;
 
-	unsigned velocity_index;
+	recv_t recv_velocity;
 } physics_controller_t;
 
 #define max_physics_controller_velocity_messages 4
@@ -138,7 +141,7 @@ typedef struct flight {
 	cpVect thrust;
 	float turn;
 
-	unsigned thrust_index;
+	recv_t recv_thrust;
 } flight_t;
 
 typedef struct life {
@@ -146,7 +149,7 @@ typedef struct life {
 	float mana, max_mana, focus, willpower;
 	float rage, max_rage, serenity, temper;
 
-	unsigned damage_index;
+	recv_t recv_damage;
 } life_t;
 
 typedef enum ability_target_flags {
@@ -233,7 +236,7 @@ typedef struct cast {
 typedef struct caster {
 	caster_ability_t abilities[CASTER_MAX_ABLITIES];
 
-	unsigned cast_index;
+	recv_t recv_cast;
 } caster_t;
 
 typedef struct ttl {
@@ -264,7 +267,7 @@ typedef struct locomotion {
 	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
 	int num_behaviors;
 
-	unsigned locomotion_behavior_index;
+	recv_t recv_locomotion_behavior;
 } locomotion_t;
 
 #define max_seek_to_messages 1
@@ -336,9 +339,9 @@ typedef struct ai {
 	float locomotion_obs[AI_OBS_LENGTH];
 	float locomotion_act[AI_ACT_LENGTH];
 
-	unsigned damage_dealt_index;
-	unsigned got_kill_index;
-	unsigned damage_taken_index;
+	recv_t recv_damage_dealt;
+	recv_t recv_got_kill;
+	recv_t recv_damage_taken;
 } ai_t;
 
 typedef uint32_t team_t;
@@ -367,23 +370,23 @@ typedef struct zrc {
 	team_t team[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient // todo volatile?
-	unsigned num_damage[MAX_ENTITIES];
+	send_t send_damage[MAX_ENTITIES];
 	damage_t damage[MAX_ENTITIES][max_damage_messages];
-	unsigned num_physics_force[MAX_ENTITIES];
+	send_t send_physics_force[MAX_ENTITIES];
 	physics_force_t physics_force[MAX_ENTITIES][max_physics_force_messages];
-	unsigned num_physics_controller_velocity[MAX_ENTITIES];
+	send_t send_physics_controller_velocity[MAX_ENTITIES];
 	physics_controller_velocity_t physics_controller_velocity[MAX_ENTITIES][max_physics_controller_velocity_messages];
-	unsigned num_cast[MAX_ENTITIES];
+	send_t send_cast[MAX_ENTITIES];
 	cast_t cast[MAX_ENTITIES][max_cast_messages];
-	unsigned num_locomotion_behavior[MAX_ENTITIES];
+	send_t send_locomotion_behavior[MAX_ENTITIES];
 	locomotion_behavior_t locomotion_behavior[MAX_ENTITIES][max_locomotion_behavior_messages];
-	unsigned num_flight_thrust[MAX_ENTITIES];
+	send_t send_flight_thrust[MAX_ENTITIES];
 	flight_thrust_t flight_thrust[MAX_ENTITIES][max_flight_thrust_messages];
-	unsigned num_seek_to[MAX_ENTITIES];
+	send_t send_seek_to[MAX_ENTITIES];
 	seek_to_t seek_to[MAX_ENTITIES][max_seek_to_messages];
-	unsigned num_damage_dealt[MAX_ENTITIES];
+	send_t send_damage_dealt[MAX_ENTITIES];
 	damage_dealt_t damage_dealt[MAX_ENTITIES][max_damage_dealt_messages];
-	unsigned num_got_kill[MAX_ENTITIES];
+	send_t send_got_kill[MAX_ENTITIES];
 	id_t got_kill[MAX_ENTITIES][max_got_kill_messages];
 
 	unsigned frame;
@@ -419,13 +422,13 @@ registry_t zrc_components(int count, ...);
 #define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
-	for (unsigned i = (*(start)); i < (zrc)->num_##name##[(id)&MASK_ENTITIES]; ++i) { \
-		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][i&(max_##name##_messages-1)]; \
+	while ((*(start)) != (zrc)->send_##name##[(id)&MASK_ENTITIES]) { \
+		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][(*(start))&(max_##name##_messages-1)]; \
 		code; \
 		++(*(start)); \
 	}
 
-#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->num_##name##[(id)&MASK_ENTITIES]++)&(max_##name##_messages-1)] = *(val)
+#define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->send_##name##[(id)&MASK_ENTITIES]++)&(max_##name##_messages-1)] = *(val)
 
 // components with no behavior (pure state)
 #define ZRC_UPDATE0(zrc, name) do { \
