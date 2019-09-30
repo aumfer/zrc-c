@@ -6,8 +6,7 @@
 #include <control.h>
 
 typedef struct draw_ai {
-	sg_image locomotion_image;
-	sg_image sense_image;
+	sg_image image;
 
 	sg_buffer vertex_buffer, index_buffer;
 	sg_pipeline program;

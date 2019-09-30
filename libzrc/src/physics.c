@@ -96,6 +96,7 @@ void physics_delete(zrc_t *zrc, id_t id, physics_t *physics) {
 	cpBodyFree(physics->body);
 }
 void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
+	zrc_assert(physics->body);
 	cpBodySetPosition(physics->body, physics->position);
 	cpBodySetAngle(physics->body, physics->angle);
 	cpBodySetVelocity(physics->body, physics->velocity);
@@ -120,6 +121,7 @@ void physics_update(zrc_t *zrc) {
 	cpSpaceStep(zrc->space, TICK_RATE);
 }
 void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
+	zrc_assert(physics->body);
 	cpVect position = cpBodyGetPosition(physics->body);
 	physics->position = position;
 
@@ -137,6 +139,8 @@ void physics_end(zrc_t *zrc, id_t id, physics_t *physics) {
 
 	cpFloat torque = cpBodyGetTorque(physics->body);
 	physics->torque = (float)torque;
+
+	physics->front = cpvforangle(physics->angle);
 }
 
 id_t physics_query_ray(const zrc_t *zrc, cpVect start, cpVect end, float radius) {
@@ -209,6 +213,19 @@ static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat dampin
 		}
 	}
 }
+// https://stackoverflow.com/questions/4633177/c-how-to-wrap-a-float-to-the-interval-pi-pi
+/* wrap x -> [0,max) */
+static float wrapMax(float x, float max) {
+	/* integer math: `(max + x % max) % max` */
+	return fmodf(max + fmodf(x, max), max);
+}
+/* wrap x -> [min,max) */
+static float wrapMinMax(float x, float min, float max) {
+	return min + wrapMax(x - min, max - min);
+}
+static float world_wrap(float x) {
+	return wrapMinMax(x, -WORLD_HALF, WORLD_HALF);
+}
 static void physics_position_update(cpBody *body, cpFloat dt) {
 	id_t id = (id_t)cpBodyGetUserData(body);
 
@@ -218,8 +235,11 @@ static void physics_position_update(cpBody *body, cpFloat dt) {
 
 	if (physics) {
 		cpVect position = cpBodyGetPosition(body);
-		cpVect wrap = cpv(fmodf(position.x, WORLD_HALF), fmodf(position.y, WORLD_HALF));
-		cpBodySetPosition(body, wrap);
+		//cpVect limited = cpv(world_wrap(position.x), world_wrap(position.y));
+		//cpVect limited = cpv(cpfclamp(position.x, -WORLD_HALF, WORLD_HALF), cpfclamp(position.y, -WORLD_HALF, WORLD_HALF));
+		//cpVect limited = cpBBClampVect(cpBBNew(-WORLD_HALF, -WORLD_HALF, WORLD_HALF, WORLD_HALF), position);
+		cpVect limited = cpBBWrapVect(WORLD_BB, position);
+		cpBodySetPosition(body, limited);
 	}
 
 	cpBodyUpdatePosition(body, dt);

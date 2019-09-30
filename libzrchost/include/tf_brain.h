@@ -14,5 +14,6 @@ typedef struct tf_brain {
 
 void tf_brain_create(tf_brain_t *, const char *location, int num_input, int num_output);
 void tf_brain_delete(tf_brain_t *);
+void tf_brain_update(zrc_t *, id_t, tf_brain_t *);
 
 int tf_brain_check_status(const tf_brain_t *);

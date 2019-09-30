@@ -11,7 +11,7 @@ static void cast_tur_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
 	float proj_speed = 250;
 
-	cpVect front = cpvforangle(physics->angle);
+	cpVect front = physics->front;
 	cpVect target_point = cpv(target->point[0], target->point[1]);
 	cpVect dir = cpvnormalize(cpvsub(target_point, physics->position));
 	physics_t proj_physics = {
@@ -66,7 +66,7 @@ static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
 	float proj_speed = 500;
 
-	cpVect front = cpvforangle(physics->angle);
+	cpVect front = physics->front;
 	physics_t proj_physics = {
 		.collide_flags = ~0,
 		.collide_mask = ~0,
@@ -144,12 +144,10 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 
 	demo_world_create(&zrc_host->demo_world, zrc_host, zrc);
 
-	tf_brain_create(&zrc_host->locomotion_brain, "C:\\GitHub\\aumfer\\zrc-learn\\locomotion\\simple_save\\", AI_LOCOMOTION_OBS_LENGTH, AI_LOCOMOTION_ACT_LENGTH);
-	tf_brain_create(&zrc_host->sense_brain, "C:\\GitHub\\aumfer\\zrc-learn\\sense\\simple_save\\", AI_SENSE_OBS_LENGTH, AI_SENSE_OBS_LENGTH);
+	tf_brain_create(&zrc_host->brain, "C:\\GitHub\\aumfer\\zrc-learn\\log\\simple_save\\", AI_OBS_LENGTH, AI_ACT_LENGTH);
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
-	tf_brain_delete(&zrc_host->sense_brain);
-	tf_brain_delete(&zrc_host->locomotion_brain);
+	tf_brain_delete(&zrc_host->brain);
 	kh_destroy(ehash, zrc_host->entities);
 }
 
@@ -164,82 +162,17 @@ void zrc_host_update(zrc_host_t *zrc_host, zrc_t *zrc) {
 			kh_del(ehash, zrc_host->entities, i);
 		}
 	}
-	
-	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		ai_t *ai = ZRC_GET(zrc, ai, i);
-		if (!ai) continue;
-	
-		sense_t *sense = ZRC_GET(zrc, sense, i);
-		if (!sense) continue;
-
-		tf_brain_t *brain = &zrc_host->sense_brain;
-
-		ai_observe_sense(zrc, i, TF_TensorData(brain->input_tensor));
-	
-		int brain_sense = (ai->brain_flags & AI_BRAIN_SENSE) == AI_BRAIN_SENSE;
-		if (!brain_sense) continue;
-		
-		if (!brain->session) break;
-	
-		TF_Tensor* output_tensor[] = { 0 };
-		TF_SessionRun(brain->session, 0,
-			(TF_Output[]) {
-			brain->input
-		},
-			(TF_Tensor*[]) {
-			brain->input_tensor
-		}, 1,
-			(TF_Output[]) {
-			brain->output
-		},
-			output_tensor, 1,
-			0, 0, 0, brain->status);
-		if (tf_brain_check_status(brain)) {
-			ai_act_sense(zrc, i, TF_TensorData(output_tensor[0]));
-			TF_DeleteTensor(output_tensor[0]);
-		}
-	}
 
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		ai_t *ai = ZRC_GET(zrc, ai, i);
-		if (!ai) continue;
-
-		tf_brain_t *brain = &zrc_host->locomotion_brain;
-
-		if ((ai->train_flags & AI_TRAIN_SEEKALIGN) == AI_TRAIN_SEEKALIGN) {
-			ai_observe_locomotion_seekalign(zrc, i, TF_TensorData(brain->input_tensor));
-		} else {
-			ai_observe_locomotion(zrc, i, TF_TensorData(brain->input_tensor));
-		}
-
-		int brain_locomotion = (ai->brain_flags & AI_BRAIN_LOCOMOTION) == AI_BRAIN_LOCOMOTION;
-		if (!brain_locomotion) continue;
-
-		if (!brain->session) break;
-
-		TF_Tensor* output_tensor[] = { 0 };
-		TF_SessionRun(brain->session, 0,
-			(TF_Output[]) {
-			brain->input
-		},
-			(TF_Tensor*[]) {
-			brain->input_tensor
-		}, 1,
-			(TF_Output[]) {
-			brain->output
-		},
-			output_tensor, 1,
-			0, 0, 0, brain->status);
-		if (tf_brain_check_status(brain)) {
-			ai_act_locomotion(zrc, i, TF_TensorData(output_tensor[0]));
-			TF_DeleteTensor(output_tensor[0]);
-		}
+		tf_brain_t *brain = &zrc_host->brain;
+		tf_brain_update(zrc, i, brain);
 	}
 }
 
 id_t zrc_host_put(zrc_host_t *zrc_host, guid_t guid) {
 	int absent;
 	khint_t k = kh_put(ehash, zrc_host->entities, guid, &absent);
+	zrc_assert(absent > 0);
 	return (id_t)k;
 }
 id_t zrc_host_del(zrc_host_t *zrc_host, guid_t guid) {
@@ -325,14 +258,14 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		});
 
 		ai_t ai = {
-			//.train_flags = AI_TRAIN_SEEKALIGN,
+			.reward_flags = AI_REWARD_FIGHT,
 			.train_seekalign = {
 				.goalp = {.x = randfs() * WORLD_HALF,.y = randfs() * WORLD_HALF },
 				.goala = randf() * 2 * CP_PI
 			}
 		};
 		if (i) {
-			ai.brain_flags = AI_BRAIN_LOCOMOTION | AI_BRAIN_SENSE;
+			ai.brain_flags = AI_BRAIN_LOCOMOTION;
 		}
 		ZRC_SPAWN(zrc, ai, id, &ai);
 

@@ -16,7 +16,7 @@ extern "C" {
 #include <moving_average.h>
 #include <timer.h>
 #include <color.h>
-//#undef NDEBUG
+#undef NDEBUG // for assert
 #include <assert.h>
 #include <zmath.h>
 
@@ -32,6 +32,7 @@ typedef uint16_t id_t;
 #define WORLD_SIZE 2048
 #define WORLD_HALF (WORLD_SIZE/2)
 #define MAP_SCALE 16
+#define WORLD_BB cpBBNew(-WORLD_HALF, -WORLD_HALF, WORLD_HALF, WORLD_HALF)
 
 #define randf() ((float)rand() / RAND_MAX)
 #define randfs() (snorm(randf()))
@@ -81,6 +82,8 @@ typedef struct physics {
 	float angular_velocity;
 	float torque;
 	cpVect force;
+
+	cpVect front;
 
 	cpBody *body;
 	cpShape *shape;
@@ -302,17 +305,13 @@ typedef struct relationship {
 
 #define AI_LIDAR 16
 
-#define AI_LOCOMOTION_ACT_LENGTH 3 // thrust.x, thrust.y, turn
-#define AI_LOCOMOTION_ENTITY_LENGTH 2 // thrust, turn
-#define AI_LOCOMOTION_OBS_LENGTH ((AI_LIDAR*AI_LOCOMOTION_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)
-#define AI_SENSE_ACT_LENGTH AI_LOCOMOTION_OBS_LENGTH // + AI_ABILITY_OBS_LENGTH
-#define AI_SENSE_ENTITY_LENGTH 2 // team, distance, alignment
-#define AI_SENSE_OBS_LENGTH ((AI_LIDAR*AI_SENSE_ENTITY_LENGTH)+AI_LOCOMOTION_ACT_LENGTH)//+AI_SENSE_ACT_LENGTH)
+#define AI_ACT_LENGTH 4 // thrust.x, thrust.y, turn, fire
+#define AI_OBS_ENTITY_LENGTH 3 // team, dist, align
+#define AI_OBS_LENGTH ((AI_LIDAR*AI_OBS_ENTITY_LENGTH)+AI_ACT_LENGTH)
 
 typedef enum ai_brain_flags {
 	AI_BRAIN_NONE = 0,
-	AI_BRAIN_LOCOMOTION = 1,
-	AI_BRAIN_SENSE = 2
+	AI_BRAIN_LOCOMOTION = 1
 } ai_brain_flags_t;
 
 typedef enum ai_reward_flags {
@@ -322,17 +321,10 @@ typedef enum ai_reward_flags {
 	AI_REWARD_FIGHT = 4,
 } ai_reward_flags_t;
 
-// hard-coded observations
-typedef enum a_train_flags {
-	AI_TRAIN_NONE = 0,
-	AI_TRAIN_SEEKALIGN = 1
-} ai_train_flags_t;
-
 typedef struct ai {
 	int done;
 	ai_brain_flags_t brain_flags;
 	ai_reward_flags_t reward_flags;
-	ai_train_flags_t train_flags;
 	float total_reward;
 	float reward;
 
@@ -341,10 +333,8 @@ typedef struct ai {
 		float goala;
 	} train_seekalign;
 
-	float sense_obs[AI_SENSE_OBS_LENGTH];
-	float sense_act[AI_SENSE_ACT_LENGTH];
-	float locomotion_obs[AI_LOCOMOTION_OBS_LENGTH];
-	float locomotion_act[AI_LOCOMOTION_ACT_LENGTH];
+	float locomotion_obs[AI_OBS_LENGTH];
+	float locomotion_act[AI_ACT_LENGTH];
 
 	unsigned damage_dealt_index;
 	unsigned got_kill_index;
@@ -509,7 +499,7 @@ registry_t zrc_components(int count, ...);
 
 #define ZRC_SPAWN(zrc, name, id, value) do { \
 		id_t _id = (id); \
-		zrc_assert(!ZRC_HAS(zrc, name, _id)); \
+		zrc_assert(!ZRC_HAS(zrc, name, _id) && #name" already exists"); \
 		*ZRC_GET_WRITE(zrc, registry, _id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
 		*ZRC_GET_WRITE(zrc, name, _id) = *(value); \
 	} while (0)
@@ -624,11 +614,9 @@ void ai_shutdown(zrc_t *);
 void ai_create(zrc_t *, id_t, ai_t *);
 void ai_delete(zrc_t *, id_t, ai_t *);
 void ai_update(zrc_t *, id_t, ai_t *);
-void ai_observe_locomotion(zrc_t *, id_t id, float *numpyarray);
-void ai_observe_locomotion_seekalign(zrc_t *, id_t id, float *numpyarray);
-void ai_act_locomotion(zrc_t *, id_t id, float *numpyarray);
-void ai_observe_sense(zrc_t *zrc, id_t id, float *observation);
-void ai_act_sense(zrc_t *zrc, id_t id, float *action);
+// not using events for these :/
+void ai_observe(zrc_t *, id_t id, float *numpyarray);
+void ai_act(zrc_t *, id_t id, float *numpyarray);
 
 
 #ifdef __cplusplus
