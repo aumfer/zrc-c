@@ -44,13 +44,13 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 		cpVect look = cpv(16, 0);
 		if (!control->fixed_camera) {
-			look = cpvrotate(look, cpvforangle(physics->angle));
+			look = cpvrotate(look, physics->front);
 		}
 		camera->target[0] = (float)(physics->position.x /*+ physics->velocity[0]/10*/ + look.x);
 		camera->target[1] = (float)(physics->position.y /*+ physics->velocity[1]/10*/ + look.y);
 		cpVect offset = cpv(-16, 0);
 		if (!control->fixed_camera) {
-			offset = cpvrotate(offset, cpvforangle(physics->angle));
+			offset = cpvrotate(offset, physics->front);
 		}
 		camera->position[0] = (float)(physics->position.x /*- physics->velocity[0]/10*/ + offset.x);
 		camera->position[1] = (float)(physics->position.y /*- physics->velocity[1]/10*/ + offset.y);
@@ -58,6 +58,12 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 
 	if (ZRC_HAS(zrc, flight, control->unit)) {
 		flight_thrust_t flight_thrust = { 0 };
+
+		if (ui_button(ui, SAPP_KEYCODE_SPACE)) {
+			physics->damping = 0;
+		} else {
+			physics->damping = SHIP_DAMPING;
+		}
 
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
 			flight_thrust.thrust.x += 1;

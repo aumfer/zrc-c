@@ -32,7 +32,7 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 	// nostrafe
 	thrust.y = 0;
 	thrust = cpvclamp(thrust, 1);
-	thrust = cpvrotate(thrust, cpvforangle(physics->angle));
+	thrust = cpvrotate(thrust, physics->front);
 
 	turn = (float)cpfclamp(turn, -1, +1);
 
@@ -51,6 +51,8 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 			ZRC_SEND(zrc, physics_controller_velocity, id, &physics_controller_velocity);
 		}
 	} else {
+		force = cpvmult(force, physics->mass);
+		torque = torque * physics->moment;
 		if (!cpveql(force, cpvzero) || torque != 0) {
 			physics_force_t physics_force = {
 				.force = force,

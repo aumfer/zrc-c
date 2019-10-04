@@ -23,9 +23,9 @@ extern "C" {
 typedef uint16_t id_t;
 #define ID_INVALID ((id_t)-1)
 
-#define MAX_ENTITIES (16384/2)
+#define MAX_ENTITIES (16384/1)
 #define MASK_ENTITIES (MAX_ENTITIES-1)
-#define MAX_FRAMES (64/2)
+#define MAX_FRAMES (64/1)
 #define MASK_FRAMES (MAX_FRAMES-1)
 
 #define TICK_RATE (1.0f/60.0f)
@@ -33,6 +33,7 @@ typedef uint16_t id_t;
 #define WORLD_HALF (WORLD_SIZE/2)
 #define MAP_SCALE 16
 #define WORLD_BB cpBBNew(-WORLD_HALF, -WORLD_HALF, WORLD_HALF, WORLD_HALF)
+#define WORLD_INVALID cpv(NAN, NAN)
 
 #define randf() ((float)rand() / RAND_MAX)
 #define randfs() (snorm(randf()))
@@ -59,13 +60,15 @@ typedef enum zrc_component {
 	zrc_sense,
 	//zrc_relate,
 	zrc_team,
-	zrc_ai,
+	zrc_rl,
 	zrc_component_count
 } zrc_component_t;
 
 typedef uint16_t registry_t;
 
 static_assert(zrc_component_count <= sizeof(registry_t)*8, "too many components");
+
+#define SHIP_DAMPING 0.1f
 
 typedef struct physics {
 	cpBodyType type;
@@ -261,7 +264,7 @@ typedef struct contact_damage {
 
 #define max_locomotion_behavior_messages 1
 
-typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point);
+typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point, float angle);
 
 typedef struct locomotion {
 	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
@@ -278,7 +281,8 @@ typedef struct seek_to {
 
 typedef struct seek {
 	cpVect point;
-	unsigned seek_index;
+
+	recv_t recv_seek_to;
 } seek_t;
 
 #define SENSE_MAX_ENTITIES 64
@@ -306,43 +310,63 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
-#define AI_LIDAR 16
+#define RL_LIDAR 15
 
-#define AI_ACT_LENGTH 4 // thrust.x, thrust.y, turn, fire
-#define AI_OBS_ENTITY_LENGTH 3 // team, dist, align
-#define AI_OBS_LENGTH ((AI_LIDAR*AI_OBS_ENTITY_LENGTH)+AI_ACT_LENGTH)
+typedef struct rl_act {
+	float thrust[2];
+	float turn;
+	float damp;
+} rl_act_t;
 
-typedef enum ai_brain_flags {
-	AI_BRAIN_NONE = 0,
-	AI_BRAIN_LOCOMOTION = 1
-} ai_brain_flags_t;
+#define RL_ACT_LENGTH (sizeof(rl_act_t)/sizeof(float))
 
-typedef enum ai_reward_flags {
-	AI_REWARD_NONE = 0,
-	AI_REWARD_SEEKALIGN = 1,
-	AI_REWARD_FOLLOWALIGN = 2,
-	AI_REWARD_FIGHT = 4,
-} ai_reward_flags_t;
+typedef struct rl_obs {
+	struct rl_obs_command {
+		float dist[RL_LIDAR];
+		float align[RL_LIDAR];
+	} command;
+	//struct rl_obs_entity {
+	//	float dist[AI_LIDAR];
+	//	float align[AI_LIDAR];
+	//	float team;
+	//} sense[SENSE_MAX_ENTITIES];
+	rl_act_t act;
+} rl_obs_t;
 
-typedef struct ai {
+#define RL_OBS_LENGTH (sizeof(rl_obs_t)/sizeof(float))
+
+typedef enum rl_brain_flags {
+	RL_BRAIN_NONE = 0,
+	RL_BRAIN_LOCOMOTION = 1
+} rl_brain_flags_t;
+
+typedef enum rl_reward_flags {
+	RL_REWARD_NONE = 0,
+	RL_REWARD_SEEKALIGN = 1,
+	RL_REWARD_FOLLOWALIGN = 2,
+	RL_REWARD_FIGHT = 4,
+} rl_reward_flags_t;
+
+typedef struct rl {
 	int done;
-	ai_brain_flags_t brain_flags;
-	ai_reward_flags_t reward_flags;
+	rl_brain_flags_t brain_flags;
+	rl_reward_flags_t reward_flags;
 	float total_reward;
 	float reward;
 
 	struct {
+		id_t goalid;
 		cpVect goalp;
 		float goala;
-	} train_seekalign;
+	} train;
 
-	float locomotion_obs[AI_OBS_LENGTH];
-	float locomotion_act[AI_ACT_LENGTH];
+	//rl_obs_t obs;
+	rl_act_t act;
 
 	recv_t recv_damage_dealt;
 	recv_t recv_got_kill;
 	recv_t recv_damage_taken;
-} ai_t;
+} rl_t;
 
 typedef uint32_t team_t;
 
@@ -366,7 +390,7 @@ typedef struct zrc {
 	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
 	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
 	//relate_t relate[MAX_FRAMES][MAX_ENTITIES];
-	ai_t ai[MAX_FRAMES][MAX_ENTITIES];
+	rl_t rl[MAX_FRAMES][MAX_ENTITIES];
 	team_t team[MAX_FRAMES][MAX_ENTITIES];
 
 	// transient // todo volatile?
@@ -612,14 +636,14 @@ void relate_update(zrc_t *);
 float relate_to_query(zrc_t *, id_t, id_t);
 void team_update(zrc_t*);
 
-void ai_startup(zrc_t *);
-void ai_shutdown(zrc_t *);
-void ai_create(zrc_t *, id_t, ai_t *);
-void ai_delete(zrc_t *, id_t, ai_t *);
-void ai_update(zrc_t *, id_t, ai_t *);
+void rl_startup(zrc_t *);
+void rl_shutdown(zrc_t *);
+void rl_create(zrc_t *, id_t, rl_t *);
+void rl_delete(zrc_t *, id_t, rl_t *);
+void rl_update(zrc_t *, id_t, rl_t *);
 // not using events for these :/
-void ai_observe(zrc_t *, id_t id, float *numpyarray);
-void ai_act(zrc_t *, id_t id, float *numpyarray);
+void rl_observe(const zrc_t *, id_t id, rl_obs_t *numpyarray);
+void rl_act(zrc_t *, id_t id, rl_act_t *numpyarray);
 
 
 #ifdef __cplusplus

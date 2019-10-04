@@ -35,7 +35,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 	ui_touchpoint_t pointer = ui_touch(ui, UI_TOUCH_POINTER);
 	char ptr[32];
-	sprintf_s(ptr, sizeof(ptr), "point: %.0f %.0f (%d)", pointer.x, pointer.y, control->target);
+	sprintf_s(ptr, sizeof(ptr), "screen: %.0f %.0f (%d)", pointer.x, pointer.y, control->target);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 10, [1] = 30 }, 0xff333333);
 	font_print(&draw->font, ptr, (float[2]) { [0] = 11, [1] = 31 }, 0xffcccccc);
 
@@ -53,7 +53,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 
 		char spd[32];
 		cpFloat speed = cpvlength(physics->velocity);
-		sprintf_s(spd, sizeof(spd), "speed: %.2f %.2f", speed, fabs(physics->angular_velocity));
+		sprintf_s(spd, sizeof(spd), "speed: %.2f %.2f (%.1f)", speed, fabs(physics->angular_velocity), physics->damping);
 		font_print(&draw->font, spd, (float[2]) { [0] = 10, [1] = 90 }, 0xff333333);
 		font_print(&draw->font, spd, (float[2]) { [0] = 11, [1] = 91 }, 0xffcccccc);
 	}
@@ -89,7 +89,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		font_print(&draw->font, numsense, (float[2]) { [0] = 11, [1] = 151 }, 0xffcccccc);
 	}
 
-	ai_t *ai = ZRC_GET(zrc, ai, control->unit);
+	rl_t *ai = ZRC_GET(zrc, rl, control->unit);
 	if (ai) {
 		char sreward[32];
 		float reward = ai->reward;

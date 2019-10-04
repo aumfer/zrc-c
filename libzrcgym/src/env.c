@@ -43,14 +43,14 @@ void env_delete(env_t *env) {
 }
 
 int env_observation_length(void) {
-	return AI_OBS_LENGTH;
+	return RL_OBS_LENGTH;
 }
 int env_action_length(void) {
-	return AI_ACT_LENGTH;
+	return RL_ACT_LENGTH;
 }
 
 
-void env_reset(env_t *env, float *observation) {
+void env_reset(env_t *env, rl_obs_t *observation) {
 	mtx_lock(&env->draw_mtx);
 
 	++env->num_resets;
@@ -78,33 +78,37 @@ void env_reset(env_t *env, float *observation) {
 	zrc_t *zrc = &env->gym->zrc;
 	id_t agent = env->gym->agent;
 
-	ai_t *ai = ZRC_GET_WRITE(zrc, ai, agent);
+	rl_t *ai = ZRC_GET_WRITE(zrc, rl, agent);
 	if (ai) {
 		ai->brain_flags = 0;
+		ai->reward_flags = RL_REWARD_SEEKALIGN;
 	}
 
-	ai_observe(zrc, agent, observation);
+	rl_observe(zrc, agent, observation);
 }
 
 
-void env_step(env_t *env, float *action, float *observation, float *reward, int *done) {
+void env_step(env_t *env, rl_act_t *action, rl_obs_t *observation, float *reward, int *done) {
 	if (!env->gym) return;
 	gym_t *gym = env->gym;
 	zrc_t *zrc = &env->gym->zrc;
 	id_t agent = env->gym->agent;
-
-	ai_t *ai = ZRC_GET(zrc, ai, agent);
 	
 	float t = zrc->frame * TICK_RATE;
 
 	for (int i = 0; i < 3; ++i) {
 		//printf("%u act", zrc->frame);
-		ai_act(zrc, agent, action);
+		rl_act(zrc, agent, action);
 		//puts(" done");
 		//printf("%u update", zrc->frame);
 		gym_update(gym);
 		//puts(" done");
 
+		//printf("%u obs", zrc->frame);
+		rl_observe(zrc, agent, observation);
+		//puts(" done");
+
+		rl_t *ai = ZRC_GET(zrc, rl, agent);
 		if (ai) {
 			*reward += ai->reward;
 			if (ai->done) {
@@ -115,21 +119,12 @@ void env_step(env_t *env, float *action, float *observation, float *reward, int 
 			*done = 1;
 			printf("done (dead) %.2f\n", t);
 		}
-	}
 
-	// 1 minute
-	if (t > 60) {
-		*done = 1;
-		printf("done (time) %2.f\n", t);
-	}
-
-	//printf("%u obs", zrc->frame);
-	ai_observe(zrc, agent, observation);
-	//puts(" done");
-
-	if (*done) {
-		ai_t *aip = ZRC_GET_PREV(zrc, ai, agent);
-		printf("reward %.2f\n", aip->total_reward);
+		if (*done) {
+			rl_t *aip = ZRC_GET_PREV(zrc, rl, agent);
+			printf("reward %.2f\n", aip->total_reward);
+			break;
+		}
 	}
 }
 

@@ -86,14 +86,14 @@ void tf_brain_delete(tf_brain_t *tf_brain) {
 }
 
 void tf_brain_update(zrc_t *zrc, id_t id, tf_brain_t *brain) {
-	ai_t *ai = ZRC_GET(zrc, ai, id);
+	rl_t *ai = ZRC_GET(zrc, rl, id);
 	if (!ai) return;
 
 	//printf("ai_observe %u %u", zrc->frame, id);
-	ai_observe(zrc, id, TF_TensorData(brain->input_tensor));
+	rl_observe(zrc, id, TF_TensorData(brain->input_tensor));
 	//puts(" done");
 
-	int brain_locomotion = (ai->brain_flags & AI_BRAIN_LOCOMOTION) == AI_BRAIN_LOCOMOTION;
+	int brain_locomotion = (ai->brain_flags & RL_BRAIN_LOCOMOTION) == RL_BRAIN_LOCOMOTION;
 	if (!brain_locomotion) return;
 
 	if (!brain->session) return;
@@ -113,7 +113,8 @@ void tf_brain_update(zrc_t *zrc, id_t id, tf_brain_t *brain) {
 		0, 0, 0, brain->status);
 	if (tf_brain_check_status(brain)) {
 		//printf("ai_act %u %u", zrc->frame, id);
-		ai_act(zrc, id, TF_TensorData(output_tensor[0]));
+		rl_act_t *act = TF_TensorData(output_tensor[0]);
+		rl_act(zrc, id, act);
 		//puts(" done");
 	}
 	if (output_tensor[0]) {

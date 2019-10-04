@@ -34,7 +34,7 @@ void zrc_startup(zrc_t *zrc) {
 	seek_startup(zrc);
 	sense_startup(zrc);
 	relate_startup(zrc);
-	ai_startup(zrc);
+	rl_startup(zrc);
 
 	zrc->ability[ABILITY_TUR_PROJ_ATTACK] = (ability_t) {
 		.target_flags = ABILITY_TARGET_POINT,
@@ -66,7 +66,7 @@ void zrc_startup(zrc_t *zrc) {
 	};
 }
 void zrc_shutdown(zrc_t *zrc) {
-	ai_shutdown(zrc);
+	rl_shutdown(zrc);
 	relate_shutdown(zrc);
 	sense_shutdown(zrc);
 	seek_shutdown(zrc);
@@ -114,7 +114,7 @@ void zrc_update(zrc_t *zrc) {
 	//ZRC_UPDATE0(zrc, relate);
 	ZRC_UPDATE0(zrc, team);
 	//printf(".%d", i++);
-	ZRC_UPDATE1(zrc, ai);
+	ZRC_UPDATE1(zrc, rl);
 	//puts(".done");
 
 	uint64_t update_ticks = 0;

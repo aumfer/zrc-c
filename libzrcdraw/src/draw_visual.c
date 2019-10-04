@@ -284,8 +284,9 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 		if (physics) {
 			//cpVect velocity = cpvadd(physics->velocity, cpvmult(physics->force, extra));
 			cpVect velocity = physics->velocity;
-			cpVect position = cpvadd(physics->position, cpvmult(velocity, extra));
-			float angle = physics->angle + physics->angular_velocity * extra;
+			float damp_extra = extra * (1 - physics->damping);
+			cpVect position = cpvadd(physics->position, cpvmult(velocity, damp_extra));
+			float angle = physics->angle + physics->angular_velocity * damp_extra;
 
 			instance.size[0] = physics->radius * 2;
 			instance.size[1] = physics->radius * 2;

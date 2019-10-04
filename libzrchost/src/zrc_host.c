@@ -144,7 +144,7 @@ void zrc_host_startup(zrc_host_t *zrc_host, zrc_t *zrc) {
 
 	demo_world_create(&zrc_host->demo_world, zrc_host, zrc);
 
-	tf_brain_create(&zrc_host->brain, "C:\\GitHub\\aumfer\\zrc-learn\\log\\simple_save\\", AI_OBS_LENGTH, AI_ACT_LENGTH);
+	tf_brain_create(&zrc_host->brain, "C:\\GitHub\\aumfer\\zrc-learn\\log\\simple_save\\", RL_OBS_LENGTH, RL_ACT_LENGTH);
 }
 void zrc_host_shutdown(zrc_host_t *zrc_host) {
 	tf_brain_delete(&zrc_host->brain);
@@ -206,7 +206,7 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.response_mask = ~0,
 			.max_speed = 250,
 			.max_spin = 2.5f,
-			.damping = 0,
+			.damping = SHIP_DAMPING,
 			//.radius = 0.5f,
 			//.radius = !i ? SMALL_SHIP : randf() * 12 + 0.5f,
 			.radius = MEDIUM_SHIP,
@@ -214,17 +214,21 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.angle = randf() * 2 * CP_PI
 		};
 		ZRC_SPAWN(zrc, physics, id, &physics);
-		ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
-		//ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
-		//ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
+		//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
+		ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
+		ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
 		visual_t visual = {
-			//.color = color_random(255)
-			.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
+			.color = color_random(255)
+			//.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
 		};
 		ZRC_SPAWN(zrc, visual, id, &visual);
 		flight_t flight = {
-			.max_thrust = 150,
-			.max_turn = 3,
+			// w/ controller
+			//.max_thrust = 150,
+			//.max_turn = 3,
+			// w/ force
+			.max_thrust = 150*5,
+			.max_turn = 3*5,
 			.thrust_control_rate = 2,
 			.turn_control_rate = 4
 		};
@@ -257,26 +261,31 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.range = 500
 		});
 
-		ai_t ai = {
-			.reward_flags = AI_REWARD_FIGHT,
-			.train_seekalign = {
-				.goalp = {.x = randfs() * WORLD_HALF,.y = randfs() * WORLD_HALF },
+		rl_t ai = {
+			//.reward_flags = AI_REWARD_FIGHT,
+			.reward_flags = RL_REWARD_SEEKALIGN,
+			.train = {
+				.goalid = zrc_host_put(zrc_host, guid_create()),
+				.goalp = {.x = randfs() * WORLD_HALF/2,.y = randfs() * WORLD_HALF/2 },
 				.goala = randf() * 2 * CP_PI
 			}
 		};
 		if (i) {
-			ai.brain_flags = AI_BRAIN_LOCOMOTION;
+			ai.brain_flags = RL_BRAIN_LOCOMOTION;
 		}
-		ZRC_SPAWN(zrc, ai, id, &ai);
+		//ZRC_SPAWN(zrc, ai, id, &ai);
+		ZRC_SEND(zrc, seek_to, id, &(seek_to_t){
+			.point = ai.train.goalp
+		});
 
 		visual_t goal = {
-			.position = {ai.train_seekalign.goalp.x, ai.train_seekalign.goalp.y},
-			.angle = ai.train_seekalign.goala,
+			.position = {ai.train.goalp.x, ai.train.goalp.y},
+			.angle = ai.train.goala,
 			.size = {25, 25},
 			//.color = color_random(255)
 			.color = visual.color
 		};
-		ZRC_SPAWN(zrc, visual, zrc_host_put(zrc_host, guid_create()), &goal);
+		ZRC_SPAWN(zrc, visual, ai.train.goalid, &goal);
 
 		//contact_damage_t contact_damage = {
 		//	.damage = {

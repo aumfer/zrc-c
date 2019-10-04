@@ -213,16 +213,6 @@ static void physics_velocity_update(cpBody *body, cpVect gravity, cpFloat dampin
 		}
 	}
 }
-// https://stackoverflow.com/questions/4633177/c-how-to-wrap-a-float-to-the-interval-pi-pi
-/* wrap x -> [0,max) */
-static float wrapMax(float x, float max) {
-	/* integer math: `(max + x % max) % max` */
-	return fmodf(max + fmodf(x, max), max);
-}
-/* wrap x -> [min,max) */
-static float wrapMinMax(float x, float min, float max) {
-	return min + wrapMax(x - min, max - min);
-}
 static float world_wrap(float x) {
 	return wrapMinMax(x, -WORLD_HALF, WORLD_HALF);
 }
@@ -237,8 +227,8 @@ static void physics_position_update(cpBody *body, cpFloat dt) {
 		cpVect position = cpBodyGetPosition(body);
 		//cpVect limited = cpv(world_wrap(position.x), world_wrap(position.y));
 		//cpVect limited = cpv(cpfclamp(position.x, -WORLD_HALF, WORLD_HALF), cpfclamp(position.y, -WORLD_HALF, WORLD_HALF));
-		//cpVect limited = cpBBClampVect(cpBBNew(-WORLD_HALF, -WORLD_HALF, WORLD_HALF, WORLD_HALF), position);
-		cpVect limited = cpBBWrapVect(WORLD_BB, position);
+		cpVect limited = cpBBClampVect(WORLD_BB, position);
+		//cpVect limited = cpBBWrapVect(WORLD_BB, position);
 		cpBodySetPosition(body, limited);
 	}
 

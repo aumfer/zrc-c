@@ -13,20 +13,24 @@ void seek_create(zrc_t *zrc, id_t id, seek_t *seek) {
 void seek_delete(zrc_t *zrc, id_t id, seek_t *seek) {
 
 }
-static double seek_locomotion_behavior(const zrc_t *zrc, id_t id, cpVect point) {
+static double seek_locomotion_behavior(const zrc_t *zrc, id_t id, cpVect point, float angle) {
+	cpVect front = cpvforangle(angle);
 	const seek_t *seek = ZRC_GET(zrc, seek, id);
 	float distance = cpvdistsq(seek->point, point);
 	const physics_t *physics = ZRC_GET(zrc, physics, id);
 	float min_distance = physics ? (physics->radius*physics->radius) : 0;
-	return 1.0 / (1 + max(min_distance, distance));
+	cpVect offset = cpvsub(seek->point, point);
+	cpVect direction = cpvnormalize(offset);
+	float potential = (1.0 / max(min_distance, distance)) * cpvdot(front, direction);
+	return potential;
 }
 void seek_update(zrc_t *zrc, id_t id, seek_t *seek) {
 	seek_to_t *seek_to;
-	ZRC_RECEIVE(zrc, seek_to, id, &seek->seek_index, seek_to, {
+	ZRC_RECEIVE(zrc, seek_to, id, &seek->recv_seek_to, seek_to, {
 		seek->point = seek_to->point;
 	});
 
-	if (!seek->seek_index) {
+	if (!seek->recv_seek_to) {
 		// bail if we have never gotten a seek
 		return;
 	}

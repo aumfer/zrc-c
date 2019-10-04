@@ -102,7 +102,8 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 	draw_locomotion->accumulator = 0;
 	id_t id = control->unit;
 	const locomotion_t *locomotion = ZRC_GET(zrc, locomotion, id);
-	if (!locomotion) {
+	const physics_t *physics = ZRC_GET(zrc, physics, id);
+	if (!locomotion || !physics) {
 		return;
 	}
 	if (!locomotion->num_behaviors) {
@@ -122,7 +123,11 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 			double potential = 0;
 			for (int i = 0; i < locomotion->num_behaviors; ++i) {
 				const locomotion_behavior_t *behavior = &locomotion->behaviors[i];
-				double p = (*behavior)(zrc, id, cpv(hit.X, hit.Y));
+				cpVect point = cpv(hit.X, hit.Y);
+				cpVect offset = cpvsub(point, physics->position);
+				cpVect direction = cpvnormalize(offset);
+				float angle = cpvtoangle(direction);
+				double p = (*behavior)(zrc, id, point, angle);
 				potential += p;
 			}
 			draw_locomotion->potential[y][x] = (float)potential;

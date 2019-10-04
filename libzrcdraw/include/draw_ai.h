@@ -5,6 +5,9 @@
 #include <camera.h>
 #include <control.h>
 
+//#define DRAW_AI_ENTITIES SENSE_MAX_ENTITIES
+#define DRAW_AI_ENTITIES 0
+
 typedef struct draw_ai {
 	sg_image image;
 

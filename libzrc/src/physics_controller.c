@@ -53,9 +53,11 @@ void physics_controller_update(zrc_t *zrc, id_t id, physics_controller_t *physic
 	physics_controller_velocity_t *physics_controller_velocity;
 	cpVect velocity = cpvzero;
 	float angular_velocity = 0;
+	int count = 0;
 	ZRC_RECEIVE(zrc, physics_controller_velocity, id, &physics_controller->recv_velocity, physics_controller_velocity, {
 		velocity = cpvadd(velocity, physics_controller_velocity->velocity);
 		angular_velocity += physics_controller_velocity->angular_velocity;
+		++count;
 	});
 	cpBodySetVelocity(physics_controller->body, velocity);
 	cpBodySetAngularVelocity(physics_controller->body, angular_velocity);

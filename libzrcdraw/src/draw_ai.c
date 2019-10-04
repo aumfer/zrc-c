@@ -1,5 +1,6 @@
 #include <draw_ai.h>
 #include <zmath.h>
+#include <string.h>
 
 static float vertices[] = {
 	-1, -1,
@@ -45,21 +46,21 @@ void main() {
 
 void draw_ai_create(draw_ai_t *draw_ai) {
 	draw_ai->image = sg_make_image(&(sg_image_desc) {
-		.width = AI_LIDAR,
-		.height = AI_OBS_ENTITY_LENGTH,
+		.width = RL_LIDAR,
+		.height = 2 * (DRAW_AI_ENTITIES + 1),
 		.usage = SG_USAGE_STREAM,
 		.pixel_format = SG_PIXELFORMAT_R8
 	});
 
 	draw_ai->vertex_buffer = sg_make_buffer(&(sg_buffer_desc) {
 		.size = sizeof(vertices),
-			.content = vertices
+		.content = vertices
 	});
 
 	draw_ai->index_buffer = sg_make_buffer(&(sg_buffer_desc) {
 		.size = sizeof(indices),
-			.type = SG_BUFFERTYPE_INDEXBUFFER,
-			.content = indices
+		.type = SG_BUFFERTYPE_INDEXBUFFER,
+		.content = indices
 	});
 
 	draw_ai->program = sg_make_pipeline(&(sg_pipeline_desc) {
@@ -68,25 +69,25 @@ void draw_ai_create(draw_ai_t *draw_ai) {
 				[0].format = SG_VERTEXFORMAT_FLOAT2
 			}
 		},
-			.shader = sg_make_shader(&(sg_shader_desc) {
+		.shader = sg_make_shader(&(sg_shader_desc) {
 			.attrs = {
 				[0].name = "texcoord"
 			},
-				.vs.source = vertex_source,
-				.fs.source = fragment_source,
-				.fs.images = {
-					[0].name = "potential",
-					[0].type = SG_IMAGETYPE_2D
+			.vs.source = vertex_source,
+			.fs.source = fragment_source,
+			.fs.images = {
+				[0].name = "potential",
+				[0].type = SG_IMAGETYPE_2D
 			}
 		}),
-			.index_type = SG_INDEXTYPE_UINT16,
-				.blend = {
-					.enabled = true,
-					.src_factor_rgb = SG_BLENDFACTOR_ONE,
-					.src_factor_alpha = SG_BLENDFACTOR_ONE,
-					.dst_factor_rgb = SG_BLENDFACTOR_ONE,
-					.dst_factor_alpha = SG_BLENDFACTOR_ONE,
-			}
+		.index_type = SG_INDEXTYPE_UINT16,
+			.blend = {
+				.enabled = true,
+				.src_factor_rgb = SG_BLENDFACTOR_ONE,
+				.src_factor_alpha = SG_BLENDFACTOR_ONE,
+				.dst_factor_rgb = SG_BLENDFACTOR_ONE,
+				.dst_factor_alpha = SG_BLENDFACTOR_ONE,
+		}
 	});
 }
 void draw_ai_delete(draw_ai_t *draw_ai) {
@@ -95,16 +96,22 @@ void draw_ai_delete(draw_ai_t *draw_ai) {
 
 void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
 	id_t id = control->unit;
-	const ai_t *ai = ZRC_GET(zrc, ai, id);
+	const rl_t *ai = ZRC_GET(zrc, rl, id);
 	if (!ai) return;
 
-	uint8_t locomotion_lidar[AI_LIDAR*AI_OBS_ENTITY_LENGTH];
-	for (int i = 0; i < AI_LIDAR*AI_OBS_ENTITY_LENGTH; i += AI_OBS_ENTITY_LENGTH) {
-		for (int j = 0; j < AI_OBS_ENTITY_LENGTH; ++j) {
-			locomotion_lidar[i + j] = (uint8_t)(unorm(ai->locomotion_obs[i + j]) * 255);
-			locomotion_lidar[i + j] = (uint8_t)(unorm(ai->locomotion_obs[i + j]) * 255);
-			locomotion_lidar[i + j] = (uint8_t)(unorm(ai->locomotion_obs[i + j]) * 255);
-		}
+	rl_obs_t locomotion_obs;
+	rl_observe(zrc, id, &locomotion_obs);
+
+	uint8_t locomotion_lidar[(DRAW_AI_ENTITIES + 1)][2][RL_LIDAR] = { 0 };
+	//memset(locomotion_lidar, 0, sizeof(locomotion_lidar));
+	for (int i = 0; i < RL_LIDAR; ++i) {
+		locomotion_lidar[0][0][i] = (uint8_t)(unorm(locomotion_obs.command.dist[i]) * 255);
+		locomotion_lidar[0][1][i] = (uint8_t)(unorm(locomotion_obs.command.align[i]) * 255);
+
+		//for (int j = 0; j < DRAW_AI_ENTITIES; ++j) {
+		//	locomotion_lidar[j+1][0][i] = (uint8_t)(unorm(locomotion_obs.sense[j].dist[i]) * 255);
+		//	locomotion_lidar[j+1][1][i] = (uint8_t)(unorm(locomotion_obs.sense[j].align[i]) * 255);
+		//}
 	}
 
 	sg_update_image(draw_ai->image, &(sg_image_content) {
@@ -114,11 +121,10 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 		}
 	});
 
-
 	sg_begin_default_pass(&(sg_pass_action) {
 		.colors[0].action = SG_ACTION_DONTCARE,
-			.depth.action = SG_ACTION_DONTCARE,
-			.stencil.action = SG_ACTION_DONTCARE
+		.depth.action = SG_ACTION_DONTCARE,
+		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());
 
 	sg_apply_pipeline(draw_ai->program);
@@ -126,10 +132,10 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 		.vertex_buffers = {
 			[0] = draw_ai->vertex_buffer
 		},
-			.index_buffer = draw_ai->index_buffer,
-			.fs_images[0] = draw_ai->image
+		.index_buffer = draw_ai->index_buffer,
+		.fs_images[0] = draw_ai->image
 	});
-	sg_apply_viewport(0, 0, sapp_width(), 8* AI_OBS_ENTITY_LENGTH, true);
+	sg_apply_viewport(0, 0, sapp_width(), 8 * 2 * (DRAW_AI_ENTITIES + 1), true);
 
 	sg_draw(0, _countof(indices), 1);
 
