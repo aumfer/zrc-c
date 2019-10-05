@@ -13,16 +13,18 @@ void flight_delete(zrc_t *zrc, id_t id, flight_t *flight) {
 
 }
 void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
-	physics_t *physics = ZRC_GET(zrc, physics, id);
+	const physics_t *physics = ZRC_GET(zrc, physics, id);
 	zrc_assert(physics);
 
 	cpVect thrust = cpvzero;
 	float turn = 0;
+	float damp = 0;
 
 	flight_thrust_t *flight_thrust;
 	ZRC_RECEIVE(zrc, flight_thrust, id, &flight->recv_thrust, flight_thrust, {
 		thrust = cpvadd(thrust, flight_thrust->thrust);
 		turn += flight_thrust->turn;
+		damp += flight_thrust->damp;
 	});
 
 	// noreverse
@@ -38,6 +40,7 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 
 	flight->thrust = cpvlerp(flight->thrust, thrust, flight->thrust_control_rate*TICK_RATE);
 	flight->turn = cpflerp(flight->turn, turn, flight->turn_control_rate*TICK_RATE);
+	flight->damp = damp;
 
 	cpVect force = cpvmult(flight->thrust, flight->max_thrust);
 	float torque = flight->turn * flight->max_turn;
@@ -56,7 +59,8 @@ void flight_update(zrc_t *zrc, id_t id, flight_t *flight) {
 		if (!cpveql(force, cpvzero) || torque != 0) {
 			physics_force_t physics_force = {
 				.force = force,
-				.torque = torque
+				.torque = torque,
+				.damp = damp
 			};
 			ZRC_SEND(zrc, physics_force, id, &physics_force);
 		}

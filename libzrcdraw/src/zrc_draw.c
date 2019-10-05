@@ -9,6 +9,10 @@ void zrc_draw_delete(zrc_draw_t *zrc_draw) {
 
 }
 
+void zrc_draw_update(zrc_draw_t *zrc_draw, zrc_t *zrc) {
+	draw_update(&zrc_draw->draw, zrc, &zrc_draw->control);
+}
+
 void zrc_draw_frame(zrc_draw_t *zrc_draw, zrc_t *zrc) {
 	timer_update(&zrc_draw->timer);
 	float dt = (float)stm_sec(zrc_draw->timer.dt);

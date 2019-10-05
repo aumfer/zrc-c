@@ -16,7 +16,7 @@ void contact_damage_delete(zrc_t *zrc, id_t id, contact_damage_t *contact_damage
 
 }
 void contact_damage_update(zrc_t *zrc, id_t id, contact_damage_t *contact_damage) {
-	physics_t *physics = ZRC_GET(zrc, physics, id);
+	const physics_t *physics = ZRC_GET(zrc, physics, id);
 	zrc_assert(physics);
 	cpBodyEachArbiter(physics->body, contact_damage_update_arbiter, contact_damage);
 }
@@ -39,16 +39,16 @@ static void contact_damage_update_arbiter(cpBody *body, cpArbiter *arbiter, void
 	id_t id2 = (id_t)cpShapeGetUserData(s2);
 	id_t hit_id = id == id1 ? id2 : id1;
 
-	team_t *team = ZRC_GET(zrc, team, id);
-	team_t *hit_team = ZRC_GET(zrc, team, hit_id);
+	const team_t *team = ZRC_GET(zrc, team, id);
+	const team_t *hit_team = ZRC_GET(zrc, team, hit_id);
 	if (team && hit_team && *team == *hit_team) {
 		return;
 	}
 
 	if (ZRC_HAS(zrc, contact_damage, hit_id)) {
 		// if we hit another contact damage
-		physics_t *physics = ZRC_GET(zrc, physics, id);
-		physics_t *hit_physics = ZRC_GET(zrc, physics, hit_id);
+		const physics_t *physics = ZRC_GET(zrc, physics, id);
+		const physics_t *hit_physics = ZRC_GET(zrc, physics, hit_id);
 		if (physics && hit_physics) {
 			float speed = cpvlengthsq(physics->velocity);
 			float hit_speed = cpvlengthsq(hit_physics->velocity);

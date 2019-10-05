@@ -45,28 +45,7 @@ typedef struct zrc zrc_t;
 typedef uint8_t send_t;
 typedef uint8_t recv_t;
 
-typedef enum zrc_component {
-	zrc_registry,
-	zrc_physics,
-	zrc_visual,
-	zrc_flight,
-	zrc_life,
-	zrc_physics_controller,
-	zrc_caster,
-	zrc_ttl,
-	zrc_contact_damage,
-	zrc_locomotion,
-	zrc_seek,
-	zrc_sense,
-	//zrc_relate,
-	zrc_team,
-	zrc_rl,
-	zrc_component_count
-} zrc_component_t;
-
 typedef uint16_t registry_t;
-
-static_assert(zrc_component_count <= sizeof(registry_t)*8, "too many components");
 
 #define SHIP_DAMPING 0.1f
 
@@ -102,6 +81,7 @@ typedef struct physics {
 typedef struct physics_force {
 	cpVect force;
 	float torque;
+	float damp;
 } physics_force_t;
 
 typedef struct physics_controller {
@@ -132,6 +112,7 @@ typedef struct visual {
 typedef struct flight_thrust {
 	cpVect thrust;
 	float turn;
+	float damp;
 } flight_thrust_t;
 
 typedef struct flight {
@@ -143,6 +124,7 @@ typedef struct flight {
 
 	cpVect thrust;
 	float turn;
+	float damp;
 
 	recv_t recv_thrust;
 } flight_t;
@@ -262,14 +244,14 @@ typedef struct contact_damage {
 	ttl_t ttl;
 } contact_damage_t;
 
-#define max_locomotion_behavior_messages 1
+#define max_locomotion_behavior_messages 16
 
-typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point, float angle);
+typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point, cpVect front);
+
+#define NUM_LOCOMOTION_THRUSTS 5
+#define NUM_LOCOMOTION_TURNS 7
 
 typedef struct locomotion {
-	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
-	int num_behaviors;
-
 	recv_t recv_locomotion_behavior;
 } locomotion_t;
 
@@ -284,6 +266,18 @@ typedef struct seek {
 
 	recv_t recv_seek_to;
 } seek_t;
+
+#define max_align_to_messages 1
+
+typedef struct align_to {
+	float angle;
+} align_to_t;
+
+typedef struct align {
+	float angle;
+
+	recv_t recv_align_to;
+} align_t;
 
 #define SENSE_MAX_ENTITIES 64
 typedef struct sense {
@@ -310,7 +304,7 @@ typedef struct relationship {
 	float amount;
 } relationship_t;
 
-#define RL_LIDAR 15
+#define max_rl_act_messages 1
 
 typedef struct rl_act {
 	float thrust[2];
@@ -320,57 +314,66 @@ typedef struct rl_act {
 
 #define RL_ACT_LENGTH (sizeof(rl_act_t)/sizeof(float))
 
+#define max_rl_obs_messages 1
+
 typedef struct rl_obs {
-	struct rl_obs_command {
-		float dist[RL_LIDAR];
-		float align[RL_LIDAR];
-	} command;
-	//struct rl_obs_entity {
-	//	float dist[AI_LIDAR];
-	//	float align[AI_LIDAR];
-	//	float team;
-	//} sense[SENSE_MAX_ENTITIES];
-	rl_act_t act;
+	float values[8][8];
+	float current;
 } rl_obs_t;
 
 #define RL_OBS_LENGTH (sizeof(rl_obs_t)/sizeof(float))
 
-typedef enum rl_brain_flags {
-	RL_BRAIN_NONE = 0,
-	RL_BRAIN_LOCOMOTION = 1
-} rl_brain_flags_t;
-
-typedef enum rl_reward_flags {
-	RL_REWARD_NONE = 0,
-	RL_REWARD_SEEKALIGN = 1,
-	RL_REWARD_FOLLOWALIGN = 2,
-	RL_REWARD_FIGHT = 4,
-} rl_reward_flags_t;
-
 typedef struct rl {
 	int done;
-	rl_brain_flags_t brain_flags;
-	rl_reward_flags_t reward_flags;
 	float total_reward;
 	float reward;
 
-	struct {
-		id_t goalid;
-		cpVect goalp;
-		float goala;
-	} train;
-
-	//rl_obs_t obs;
-	rl_act_t act;
-
-	recv_t recv_damage_dealt;
-	recv_t recv_got_kill;
-	recv_t recv_damage_taken;
+	recv_t recv_rl_act;
+	recv_t recv_rl_obs;
+	recv_t recv_locomotion_behavior;
 } rl_t;
 
 typedef uint32_t team_t;
 
 #define max_got_kill_messages 64
+
+typedef enum zrc_component {
+	zrc_component_registry,
+	zrc_component_physics,
+	zrc_component_visual,
+	zrc_component_flight,
+	zrc_component_life,
+	zrc_component_physics_controller,
+	zrc_component_caster,
+	zrc_component_ttl,
+	zrc_component_contact_damage,
+	zrc_component_locomotion,
+	zrc_component_seek,
+	zrc_component_align,
+	zrc_component_sense,
+	//zrc_component_relate,
+	zrc_component_team,
+	zrc_component_rl,
+	zrc_component_count
+} zrc_component_t;
+static_assert(zrc_component_count <= sizeof(registry_t) * 8, "too many components");
+
+// don't feel like renaming these right now so i'll just typedef them
+typedef registry_t zrc_registry_t;
+typedef physics_t zrc_physics_t;
+typedef visual_t zrc_visual_t;
+typedef flight_t zrc_flight_t;
+typedef life_t zrc_life_t;
+typedef physics_controller_t zrc_physics_controller_t;
+typedef caster_t zrc_caster_t;
+typedef ttl_t zrc_ttl_t;
+typedef contact_damage_t zrc_contact_damage_t;
+typedef locomotion_t zrc_locomotion_t;
+typedef seek_t zrc_seek_t;
+typedef align_t zrc_align_t;
+typedef sense_t zrc_sense_t;
+typedef team_t zrc_team_t;
+typedef rl_t zrc_rl_t;
 
 typedef struct zrc {
 	// static
@@ -388,6 +391,7 @@ typedef struct zrc {
 	contact_damage_t contact_damage[MAX_FRAMES][MAX_ENTITIES];
 	locomotion_t locomotion[MAX_FRAMES][MAX_ENTITIES];
 	seek_t seek[MAX_FRAMES][MAX_ENTITIES];
+	align_t align[MAX_FRAMES][MAX_ENTITIES];
 	sense_t sense[MAX_FRAMES][MAX_ENTITIES];
 	//relate_t relate[MAX_FRAMES][MAX_ENTITIES];
 	rl_t rl[MAX_FRAMES][MAX_ENTITIES];
@@ -408,10 +412,16 @@ typedef struct zrc {
 	flight_thrust_t flight_thrust[MAX_ENTITIES][max_flight_thrust_messages];
 	send_t send_seek_to[MAX_ENTITIES];
 	seek_to_t seek_to[MAX_ENTITIES][max_seek_to_messages];
+	send_t send_align_to[MAX_ENTITIES];
+	align_to_t align_to[MAX_ENTITIES][max_align_to_messages];
 	send_t send_damage_dealt[MAX_ENTITIES];
 	damage_dealt_t damage_dealt[MAX_ENTITIES][max_damage_dealt_messages];
 	send_t send_got_kill[MAX_ENTITIES];
 	id_t got_kill[MAX_ENTITIES][max_got_kill_messages];
+	send_t send_rl_act[MAX_ENTITIES];
+	rl_act_t rl_act[MAX_ENTITIES][max_rl_act_messages];
+	send_t send_rl_obs[MAX_ENTITIES];
+	rl_obs_t rl_obs[MAX_ENTITIES][max_rl_obs_messages];
 
 	unsigned frame;
 	uint64_t times[zrc_component_count];
@@ -434,23 +444,27 @@ registry_t zrc_components(int count, ...);
 #define ZRC_WRITE_FRAME(zrc) ZRC_PAST_FRAME(zrc, -1)
 #define ZRC_NEXT_FRAME(zrc) ZRC_PAST_FRAME(zrc, -2)
 
-#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
-#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_##name##)) == (1<<zrc_##name##))
+#define ZRC_HAD_PAST(zrc, name, id, n) (((zrc)->registry[ZRC_PAST_FRAME(zrc, n)][(id)&MASK_ENTITIES] & (1<<zrc_component_##name##)) == (1<<zrc_component_##name##))
+#define ZRC_HAD(zrc, name, id) (((zrc)->registry[ZRC_PREV_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_component_##name##)) == (1<<zrc_component_##name##))
+#define ZRC_HAS(zrc, name, id) (((zrc)->registry[ZRC_READ_FRAME(zrc)][(id)&MASK_ENTITIES] & (1<<zrc_component_##name##)) == (1<<zrc_component_##name##))
 
 #define ZRC_GET_PAST(zrc, name, id, n) (&(zrc)->##name##[ZRC_PAST_FRAME(zrc, (n))][(id)&MASK_ENTITIES])
 #define ZRC_GET_PREV(zrc, name, id) (&(zrc)->##name##[ZRC_PREV_FRAME(zrc)][(id)&MASK_ENTITIES])
 #define ZRC_GET_READ(zrc, name, id) (&(zrc)->##name##[ZRC_READ_FRAME(zrc)][(id)&MASK_ENTITIES])
 #define ZRC_GET_WRITE(zrc, name, id) (&(zrc)->##name##[ZRC_WRITE_FRAME(zrc)][(id)&MASK_ENTITIES])
 #define ZRC_GET_NEXT(zrc, name, id) (&(zrc)->##name##[ZRC_NEXT_FRAME(zrc)][(id)&MASK_ENTITIES])
-#define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? ZRC_GET_READ(zrc, name, id) : 0)
+#define ZRC_GET(zrc, name, id) (ZRC_HAS(zrc, name, id) ? (const zrc_##name##_t *)ZRC_GET_READ(zrc, name, id) : 0)
 
 #define ZRC_RECEIVE(zrc, name, id, start, var, code) \
-	while ((*(start)) != (zrc)->send_##name##[(id)&MASK_ENTITIES]) { \
+	(var) = 0; \
+	while ((*(start)) != ((zrc)->send_##name##[(id)&MASK_ENTITIES])) { \
 		(var) = &(zrc)->##name##[(id)&MASK_ENTITIES][(*(start))&(max_##name##_messages-1)]; \
 		code; \
 		++(*(start)); \
 	}
+
+#define ZRC_PEEK(zrc, name, id, start) \
+	((*(start)) != (zrc)->send_##name##[(id)&MASK_ENTITIES] ? &(zrc)->##name##[(id)&MASK_ENTITIES][(*(start))&(max_##name##_messages-1)] : 0)
 
 #define ZRC_SEND(zrc, name, id, val) (zrc)->##name##[(id)&MASK_ENTITIES][((zrc)->send_##name##[(id)&MASK_ENTITIES]++)&(max_##name##_messages-1)] = *(val)
 
@@ -458,7 +472,7 @@ registry_t zrc_components(int count, ...);
 #define ZRC_UPDATE0(zrc, name) do { \
 		uint64_t start = stm_now(); \
 		for (int i = 0; i < MAX_ENTITIES; ++i) { \
-			int ignore_registry = zrc_##name## == zrc_registry; /*temp*/ \
+			int ignore_registry = zrc_component_##name## == zrc_component_registry; /*temp*/ \
 			if (ignore_registry || ZRC_HAS(zrc, name, i)) { \
 				##name##_t *prev = ZRC_GET_READ(zrc, name, i); \
 				##name##_t *next = ZRC_GET_WRITE(zrc, name, i); \
@@ -467,7 +481,7 @@ registry_t zrc_components(int count, ...);
 		} \
 		##name##_update(zrc); \
 		uint64_t end = stm_now(); \
-		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
+		(zrc)->times[zrc_component_##name##] = stm_diff(end, start); \
 	} while (0)
 
 // components with no shared state
@@ -491,7 +505,7 @@ registry_t zrc_components(int count, ...);
 			} \
 		} \
 		uint64_t end = stm_now(); \
-		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
+		(zrc)->times[zrc_component_##name##] = stm_diff(end, start); \
 	} while (0)
 
 // components with shared state
@@ -521,17 +535,17 @@ registry_t zrc_components(int count, ...);
 			} \
 		} \
 		uint64_t end = stm_now(); \
-		(zrc)->times[zrc_##name##] = stm_diff(end, start); \
+		(zrc)->times[zrc_component_##name##] = stm_diff(end, start); \
 	} while (0)
 
 #define ZRC_SPAWN(zrc, name, id, value) do { \
 		id_t _id = (id); \
 		zrc_assert(!ZRC_HAS(zrc, name, _id) && #name" already exists"); \
-		*ZRC_GET_WRITE(zrc, registry, _id) |= ((1<<zrc_##name##) | (1<<zrc_registry)); \
+		*ZRC_GET_WRITE(zrc, registry, _id) |= ((1<<zrc_component_##name##) | (1<<zrc_component_registry)); \
 		*ZRC_GET_WRITE(zrc, name, _id) = *(value); \
 	} while (0)
 
-#define ZRC_DESPAWN(zrc, name, id) (*ZRC_GET_WRITE(zrc, registry, id) &= ~(1<<zrc_##name##))
+#define ZRC_DESPAWN(zrc, name, id) (*ZRC_GET_WRITE(zrc, registry, id) &= ~(1<<zrc_component_##name##))
 #define ZRC_DESPAWN_ALL(zrc, id) (*ZRC_GET_WRITE(zrc, registry, id) = 0)
 
 #define ZRC_DECLARE_COMPONENT(name) \
@@ -624,6 +638,12 @@ void seek_create(zrc_t *, id_t, seek_t *);
 void seek_delete(zrc_t *, id_t, seek_t *);
 void seek_update(zrc_t *, id_t, seek_t *);
 
+void align_startup(zrc_t *);
+void align_shutdown(zrc_t *);
+void align_create(zrc_t *, id_t, align_t *);
+void align_delete(zrc_t *, id_t, align_t *);
+void align_update(zrc_t *, id_t, align_t *);
+
 void sense_startup(zrc_t *);
 void sense_shutdown(zrc_t *);
 void sense_create(zrc_t *, id_t, sense_t *);
@@ -641,9 +661,6 @@ void rl_shutdown(zrc_t *);
 void rl_create(zrc_t *, id_t, rl_t *);
 void rl_delete(zrc_t *, id_t, rl_t *);
 void rl_update(zrc_t *, id_t, rl_t *);
-// not using events for these :/
-void rl_observe(const zrc_t *, id_t id, rl_obs_t *numpyarray);
-void rl_act(zrc_t *, id_t id, rl_act_t *numpyarray);
 
 
 #ifdef __cplusplus

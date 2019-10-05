@@ -56,8 +56,8 @@ static physics_deleteshape(cpShape *shape, void *data) {
 }
 void physics_shutdown(zrc_t *zrc) {
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		physics_t *physics = ZRC_GET(zrc, physics, i);
-		if (physics) {
+		if (ZRC_HAS(zrc, physics, i)) {
+			physics_t *physics = ZRC_GET_WRITE(zrc, physics, i);
 			physics_delete(zrc, i, physics);
 		}
 	}
@@ -104,11 +104,13 @@ void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
 
 	cpVect force = cpvzero;
 	float torque = 0;
+	float damp = 0;
 	int num_forces = 0;
 	physics_force_t *physics_force;
 	ZRC_RECEIVE(zrc, physics_force, id, &physics->recv_force, physics_force, {
 		force = cpvadd(force, physics_force->force);
 		torque += physics_force->torque;
+		damp += physics_force->damp;
 		++num_forces;
 	});
 	if (num_forces > 1) {
@@ -116,6 +118,7 @@ void physics_begin(zrc_t *zrc, id_t id, physics_t *physics) {
 	}
 	cpBodySetForce(physics->body, force);
 	cpBodySetTorque(physics->body, torque);
+	physics->damping = damp;
 }
 void physics_update(zrc_t *zrc) {
 	cpSpaceStep(zrc->space, TICK_RATE);
@@ -171,8 +174,8 @@ static cpBool physics_collision_begin(cpArbiter *arb, cpSpace *space, cpDataPoin
 	id_t e2 = (id_t)cpShapeGetUserData(s2);
 
 	zrc_t *zrc = cpSpaceGetUserData(space);
-	physics_t *physics1 = ZRC_GET(zrc, physics, e1);
-	physics_t *physics2 = ZRC_GET(zrc, physics, e2);
+	const physics_t *physics1 = ZRC_GET(zrc, physics, e1);
+	const physics_t *physics2 = ZRC_GET(zrc, physics, e2);
 
 	cpBool respond;
 	if (physics1 && physics2) {

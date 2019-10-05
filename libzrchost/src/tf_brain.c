@@ -1,6 +1,7 @@
 #include <tf_brain.h>
 #include <stdio.h>
 #include <io.h>
+#include <string.h>
 
 void tf_brain_create(tf_brain_t *tf_brain, const char *location, int num_input, int num_output) {
 	//TF_RegisterLogListener(puts);
@@ -86,15 +87,17 @@ void tf_brain_delete(tf_brain_t *tf_brain) {
 }
 
 void tf_brain_update(zrc_t *zrc, id_t id, tf_brain_t *brain) {
-	rl_t *ai = ZRC_GET(zrc, rl, id);
+	rl_t *ai = (rl_t *)ZRC_GET(zrc, rl, id); // todo fixme
 	if (!ai) return;
 
 	//printf("ai_observe %u %u", zrc->frame, id);
-	rl_observe(zrc, id, TF_TensorData(brain->input_tensor));
+	rl_obs_t *obs;
+	ZRC_RECEIVE(zrc, rl_obs, id, &ai->recv_rl_obs, obs, {});
 	//puts(" done");
 
-	int brain_locomotion = (ai->brain_flags & RL_BRAIN_LOCOMOTION) == RL_BRAIN_LOCOMOTION;
-	if (!brain_locomotion) return;
+	if (!obs) return;
+
+	memcpy(TF_TensorData(brain->input_tensor), obs, TF_TensorByteSize(brain->input_tensor));
 
 	if (!brain->session) return;
 
@@ -114,7 +117,7 @@ void tf_brain_update(zrc_t *zrc, id_t id, tf_brain_t *brain) {
 	if (tf_brain_check_status(brain)) {
 		//printf("ai_act %u %u", zrc->frame, id);
 		rl_act_t *act = TF_TensorData(output_tensor[0]);
-		rl_act(zrc, id, act);
+		ZRC_SEND(zrc, rl_act, id, act);
 		//puts(" done");
 	}
 	if (output_tensor[0]) {

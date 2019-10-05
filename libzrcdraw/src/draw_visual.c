@@ -272,7 +272,7 @@ void draw_visual_destroy(draw_visual_t *draw_visual) {
 void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *camera, const control_t *control, float dt, float extra) {
 	int instance_count = 0;
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		visual_t *visual = ZRC_GET(zrc, visual, i);
+		const visual_t *visual = ZRC_GET(zrc, visual, i);
 		if (!visual) {
 			continue;
 		}
@@ -280,7 +280,7 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 			.color = visual->color,
 			.flags = visual->flags
 		};
-		physics_t *physics = ZRC_GET(zrc, physics, i);
+		const physics_t *physics = ZRC_GET(zrc, physics, i);
 		if (physics) {
 			//cpVect velocity = cpvadd(physics->velocity, cpvmult(physics->force, extra));
 			cpVect velocity = physics->velocity;
@@ -309,13 +309,13 @@ void draw_visual_frame(draw_visual_t *draw_visual, zrc_t *zrc, const camera_t *c
 		if (control->unit == i) {
 			instance.flags |= INSTANCE_SELECT;
 		}
-		life_t *life = ZRC_GET(zrc, life, i);
+		const life_t *life = ZRC_GET(zrc, life, i);
 		if (life) {
 			instance.life[0] = life->health / life->max_health;
 			instance.life[1] = life->mana / life->max_mana;
 			instance.life[2] = life->rage / life->max_rage;
 		}
-		caster_t *caster = ZRC_GET(zrc, caster, i);
+		const caster_t *caster = ZRC_GET(zrc, caster, i);
 		if (caster) {
 			instance.target[0] = caster->abilities[0].target.point[0];
 			instance.target[1] = caster->abilities[0].target.point[1];

@@ -6,8 +6,8 @@ void physics_controller_startup(zrc_t *zrc) {
 }
 void physics_controller_shutdown(zrc_t *zrc) {
 	for (int i = 0; i < MAX_ENTITIES; ++i) {
-		physics_controller_t *physics_controller = ZRC_GET(zrc, physics_controller, i);
-		if (physics_controller) {
+		if (ZRC_HAS(zrc, physics_controller, i)) {
+			physics_controller_t *physics_controller = ZRC_GET_WRITE(zrc, physics_controller, i);
 			physics_controller_delete(zrc, i, physics_controller);
 		}
 	}
@@ -28,7 +28,7 @@ void physics_controller_delete(zrc_t *zrc, id_t id, physics_controller_t *physic
 }
 void physics_controller_update(zrc_t *zrc, id_t id, physics_controller_t *physics_controller) {
 	if (!physics_controller->body) {
-		physics_t *physics = ZRC_GET(zrc, physics, id);
+		const physics_t *physics = ZRC_GET(zrc, physics, id);
 		zrc_assert(physics);
 
 		physics_controller->body = cpBodyNew(1, 1);

@@ -25,7 +25,7 @@ static void sense_bb_query(cpShape *shape, void *data) {
 	}
 }
 void sense_update(zrc_t *zrc, id_t id, sense_t *sense) {
-	physics_t *physics = ZRC_GET(zrc, physics, id);
+	const physics_t *physics = ZRC_GET(zrc, physics, id);
 	cpBB bounds = {
 		.l = physics->position.x - physics->radius - sense->range,
 		.r = physics->position.x + physics->radius + sense->range,

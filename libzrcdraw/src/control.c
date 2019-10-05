@@ -38,7 +38,7 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	control->ground[0] = worldp.X;
 	control->ground[1] = worldp.Y;
 
-	physics_t *physics = ZRC_GET(zrc, physics, control->unit);
+	const physics_t *physics = ZRC_GET(zrc, physics, control->unit);
 	if (physics) {
 		camera->zoom += physics->radius;
 
@@ -60,9 +60,9 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 		flight_thrust_t flight_thrust = { 0 };
 
 		if (ui_button(ui, SAPP_KEYCODE_SPACE)) {
-			physics->damping = 0;
+			flight_thrust.damp = 0;
 		} else {
-			physics->damping = SHIP_DAMPING;
+			flight_thrust.damp = SHIP_DAMPING;
 		}
 
 		if (ui_button(ui, CONTROL_BUTTON_FORWARD)) {
@@ -88,7 +88,7 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 	}
 
 	if (ZRC_HAS(zrc, caster, control->unit)) {
-		caster_t *caster = ZRC_GET(zrc, caster, control->unit);
+		const caster_t *caster = ZRC_GET(zrc, caster, control->unit);
 		int cast_buttons[] = {
 			CONTROL_BUTTON_CAST0,
 			CONTROL_BUTTON_CAST1,
@@ -100,7 +100,7 @@ void control_frame(control_t *control, const ui_t *ui, camera_t *camera, zrc_t *
 			CONTROL_BUTTON_CAST7,
 		};
 		for (int i = 0; i < CASTER_MAX_ABLITIES; ++i) {
-			caster_ability_t *caster_ability = &caster->abilities[i];
+			const caster_ability_t *caster_ability = &caster->abilities[i];
 			const ability_t *ability = &zrc->ability[caster_ability->ability];
 			cast_t cast = {
 				.caster_ability = i

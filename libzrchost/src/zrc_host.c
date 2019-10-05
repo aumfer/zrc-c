@@ -6,7 +6,7 @@ static void cast_tur_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 	zrc_host_t *zrc_host = zrc->user;
 
 	ability_t *ability = &zrc->ability[ability_id];
-	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
+	const physics_t *physics = ZRC_GET(zrc, physics, caster_id);
 
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
 	float proj_speed = 250;
@@ -61,7 +61,7 @@ static void cast_fix_proj_attack(zrc_t *zrc, ability_id_t ability_id, id_t caste
 	zrc_host_t *zrc_host = zrc->user;
 
 	ability_t *ability = &zrc->ability[ability_id];
-	physics_t *physics = ZRC_GET(zrc, physics, caster_id);
+	const physics_t *physics = ZRC_GET(zrc, physics, caster_id);
 
 	id_t proj_id = zrc_host_put(zrc_host, guid_create());
 	float proj_speed = 500;
@@ -111,7 +111,7 @@ static void cast_target_nuke(zrc_t *zrc, ability_id_t ability_id, id_t caster_id
 	};
 	ZRC_SEND(zrc, damage, target->unit, &damage);
 
-	physics_t *target_physics = ZRC_GET(zrc, physics, target->unit);
+	const physics_t *target_physics = ZRC_GET(zrc, physics, target->unit);
 	if (target_physics) {
 		id_t hit_id = zrc_host_put(zrc_host, guid_create());
 		ZRC_SPAWN(zrc, ttl, hit_id, &(ttl_t) {
@@ -216,7 +216,14 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		ZRC_SPAWN(zrc, physics, id, &physics);
 		//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
 		ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
-		ZRC_SPAWN(zrc, seek, id, &(seek_t){0});
+		seek_t seek = {
+			0
+		};
+		ZRC_SPAWN(zrc, seek, id, &seek);
+		align_t align = {
+			0
+		};
+		ZRC_SPAWN(zrc, align, id, &align);
 		visual_t visual = {
 			.color = color_random(255)
 			//.color = faction == TEAM_RADIANT ? 0xff0000ff : (faction == TEAM_DIRE ? 0xff00ff00 : 0xffff0000)
@@ -261,31 +268,31 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			.range = 500
 		});
 
-		rl_t ai = {
-			//.reward_flags = AI_REWARD_FIGHT,
-			.reward_flags = RL_REWARD_SEEKALIGN,
-			.train = {
-				.goalid = zrc_host_put(zrc_host, guid_create()),
-				.goalp = {.x = randfs() * WORLD_HALF/2,.y = randfs() * WORLD_HALF/2 },
-				.goala = randf() * 2 * CP_PI
-			}
+		rl_t rl = {
+			0
 		};
 		if (i) {
-			ai.brain_flags = RL_BRAIN_LOCOMOTION;
+			ZRC_SPAWN(zrc, rl, id, &rl);
 		}
-		//ZRC_SPAWN(zrc, ai, id, &ai);
-		ZRC_SEND(zrc, seek_to, id, &(seek_to_t){
-			.point = ai.train.goalp
-		});
+		seek_to_t seek_to = {
+			.point = {.x = randfs() * WORLD_HALF / 2,.y = randfs() * WORLD_HALF / 2 },
+		};
+		ZRC_SEND(zrc, seek_to, id, &seek_to);
+		align_to_t align_to = {
+			.angle = randfs() * CP_PI
+		};
+		ZRC_SEND(zrc, align_to, id, &align_to);
+
+		id_t goal_id = zrc_host_put(zrc_host, guid_create());
 
 		visual_t goal = {
-			.position = {ai.train.goalp.x, ai.train.goalp.y},
-			.angle = ai.train.goala,
+			.position = {seek_to.point.x, seek_to.point.y},
+			.angle = align_to.angle,
 			.size = {25, 25},
 			//.color = color_random(255)
 			.color = visual.color
 		};
-		ZRC_SPAWN(zrc, visual, ai.train.goalid, &goal);
+		ZRC_SPAWN(zrc, visual, goal_id, &goal);
 
 		//contact_damage_t contact_damage = {
 		//	.damage = {

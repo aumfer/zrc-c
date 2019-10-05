@@ -23,6 +23,10 @@ void draw_delete(draw_t *draw) {
 	sg_shutdown();
 }
 
+void draw_update(draw_t *draw, zrc_t *zrc, const control_t *control) {
+	draw_locomotion_update(&draw->draw_locomotion, zrc, control);
+}
+
 void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *control, const camera_t *camera, float dt) {
 	moving_average_update(&draw->fps, dt);
 
@@ -44,7 +48,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	font_print(&draw->font, grd, (float[2]) { [0] = 10, [1] = 50 }, 0xff333333);
 	font_print(&draw->font, grd, (float[2]) { [0] = 11, [1] = 51 }, 0xffcccccc);
 
-	physics_t *physics = ZRC_GET(zrc, physics, control->unit);
+	const physics_t *physics = ZRC_GET(zrc, physics, control->unit);
 	if (physics) {
 		char pos[32];
 		sprintf_s(pos, sizeof(pos), "ship: %.0f %.0f", physics->position.x, physics->position.y);
@@ -59,7 +63,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 	}
 
 	if (control->target != ID_INVALID) {
-		physics_t *physics = ZRC_GET(zrc, physics, control->target);
+		const physics_t *physics = ZRC_GET(zrc, physics, control->target);
 		if (physics) {
 			char hov[32];
 			sprintf_s(hov, sizeof(hov), "hov: %.0f %.0f", physics->position.x, physics->position.y);
@@ -70,8 +74,8 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		if (control->target != control->unit) {
 			//float my_relation = relate_to_query(zrc, control->unit, control->target);
 			//float their_relation = relate_to_query(zrc, control->target, control->unit);
-			team_t *my_team = ZRC_GET(zrc, team, control->unit);
-			team_t *their_team = ZRC_GET(zrc, team, control->target);
+			const team_t *my_team = ZRC_GET(zrc, team, control->unit);
+			const team_t *their_team = ZRC_GET(zrc, team, control->target);
 			if (my_team && their_team) {
 				char rel[32];
 				sprintf_s(rel, sizeof(rel), "rel: %d %d", *my_team, *their_team);
@@ -81,7 +85,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		}
 	}
 
-	sense_t *sense = ZRC_GET(zrc, sense, control->unit);
+	const sense_t *sense = ZRC_GET(zrc, sense, control->unit);
 	if (sense) {
 		char numsense[32];
 		sprintf_s(numsense, sizeof(numsense), "sense: %d", sense->num_entities);
@@ -89,7 +93,7 @@ void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *contr
 		font_print(&draw->font, numsense, (float[2]) { [0] = 11, [1] = 151 }, 0xffcccccc);
 	}
 
-	rl_t *ai = ZRC_GET(zrc, rl, control->unit);
+	const rl_t *ai = ZRC_GET(zrc, rl, control->unit);
 	if (ai) {
 		char sreward[32];
 		float reward = ai->reward;

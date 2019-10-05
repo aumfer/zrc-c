@@ -109,6 +109,8 @@ void zrc_update(zrc_t *zrc) {
 	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, seek);
 	//printf(".%d", i++);
+	ZRC_UPDATE1(zrc, align);
+	//printf(".%d", i++);
 	ZRC_UPDATE1(zrc, sense);
 	//printf(".%d", i++);
 	//ZRC_UPDATE0(zrc, relate);

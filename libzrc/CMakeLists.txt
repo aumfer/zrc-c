@@ -1,5 +1,5 @@
 add_library(libzrc
-    src/ai.c
+    src/align.c
     include/camera.h
     src/camera.c
     src/caster.c
@@ -15,6 +15,7 @@ add_library(libzrc
     src/moving_average.c
     src/physics_controller.c
     src/physics.c
+    src/rl.c
     src/seek.c
     src/sense.c
     include/timer.h

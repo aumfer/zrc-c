@@ -7,6 +7,7 @@ typedef struct gym {
 	zrc_t zrc;
 	zrc_host_t zrc_host;
 	id_t agent;
+	recv_t recv_obs;
 } gym_t;
 
 void gym_create(gym_t *);

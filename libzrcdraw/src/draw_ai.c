@@ -45,6 +45,7 @@ void main() {
 });
 
 void draw_ai_create(draw_ai_t *draw_ai) {
+#if 0
 	draw_ai->image = sg_make_image(&(sg_image_desc) {
 		.width = RL_LIDAR,
 		.height = 2 * (DRAW_AI_ENTITIES + 1),
@@ -89,12 +90,14 @@ void draw_ai_create(draw_ai_t *draw_ai) {
 				.dst_factor_alpha = SG_BLENDFACTOR_ONE,
 		}
 	});
+#endif
 }
 void draw_ai_delete(draw_ai_t *draw_ai) {
 
 }
 
 void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
+#if 0
 	id_t id = control->unit;
 	const rl_t *ai = ZRC_GET(zrc, rl, id);
 	if (!ai) return;
@@ -141,4 +144,5 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 
 	sg_end_pass();
 	sg_commit();
+#endif
 }

@@ -75,16 +75,20 @@ void env_reset(env_t *env, rl_obs_t *observation) {
 		gym_update(env->gym);
 	}
 
+	gym_t *gym = env->gym;
 	zrc_t *zrc = &env->gym->zrc;
 	id_t agent = env->gym->agent;
 
 	rl_t *ai = ZRC_GET_WRITE(zrc, rl, agent);
 	if (ai) {
-		ai->brain_flags = 0;
-		ai->reward_flags = RL_REWARD_SEEKALIGN;
 	}
 
-	rl_observe(zrc, agent, observation);
+	rl_obs_t *obs;
+	ZRC_RECEIVE(zrc, rl_obs, agent, &gym->recv_obs, obs, {});
+	//assert(obs);
+	if (obs) {
+		*observation = *obs;
+	}
 }
 
 
@@ -98,17 +102,25 @@ void env_step(env_t *env, rl_act_t *action, rl_obs_t *observation, float *reward
 
 	for (int i = 0; i < 3; ++i) {
 		//printf("%u act", zrc->frame);
-		rl_act(zrc, agent, action);
+		ZRC_SEND(zrc, rl_act, agent, action);
 		//puts(" done");
 		//printf("%u update", zrc->frame);
 		gym_update(gym);
 		//puts(" done");
+		if (env->zrc_draw) {
+			zrc_draw_update(env->zrc_draw, zrc);
+		}
 
 		//printf("%u obs", zrc->frame);
-		rl_observe(zrc, agent, observation);
+		rl_obs_t *obs;
+		ZRC_RECEIVE(zrc, rl_obs, agent, &gym->recv_obs, obs, {});
+		//assert(obs);
+		if (obs) {
+			*observation = *obs;
+		}
 		//puts(" done");
 
-		rl_t *ai = ZRC_GET(zrc, rl, agent);
+		const rl_t *ai = ZRC_GET(zrc, rl, agent);
 		if (ai) {
 			*reward += ai->reward;
 			if (ai->done) {
@@ -121,7 +133,7 @@ void env_step(env_t *env, rl_act_t *action, rl_obs_t *observation, float *reward
 		}
 
 		if (*done) {
-			rl_t *aip = ZRC_GET_PREV(zrc, rl, agent);
+			const rl_t *aip = ZRC_GET_PREV(zrc, rl, agent);
 			printf("reward %.2f\n", aip->total_reward);
 			break;
 		}
