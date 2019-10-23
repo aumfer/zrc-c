@@ -13,6 +13,8 @@ typedef struct draw_ai {
 
 	sg_buffer vertex_buffer, index_buffer;
 	sg_pipeline program;
+
+	recv_t recv_rl_obs;
 } draw_ai_t;
 
 void draw_ai_create(draw_ai_t *);

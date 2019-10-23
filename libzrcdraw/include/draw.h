@@ -23,5 +23,4 @@ typedef struct draw {
 void draw_create(draw_t *);
 void draw_delete(draw_t *);
 
-void draw_update(draw_t *, zrc_t *, const control_t *);
 void draw_frame(draw_t *, zrc_t *, const ui_t *, const control_t *, const camera_t *camera, float dt);

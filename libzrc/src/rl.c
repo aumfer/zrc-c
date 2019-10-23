@@ -36,95 +36,79 @@ static float step(float v) {
 }
 void rl_update(zrc_t *zrc, id_t id, rl_t *rl) {
 	const physics_t *physics = ZRC_GET(zrc, physics, id);
-	assert(physics);
-	if (!physics) return;
+	const locomotion_t *locomotion = ZRC_GET(zrc, locomotion, id);
+	if (!physics || !locomotion) return;
 
-	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
-	int num_behaviors = 0;
-	locomotion_behavior_t *locomotion_behavior;
-	ZRC_RECEIVE(zrc, locomotion_behavior, id, &rl->recv_locomotion_behavior, locomotion_behavior, {
-		behaviors[num_behaviors++] = *locomotion_behavior;
-	});
+	if (!locomotion->num_behaviors) return;
 
-	double potentials[8][8];
-	double current;
+	double potentials[RL_OBS_NUM_MOVES][RL_OBS_NUM_TURNS];
 	double minp = FLT_MAX;
 	double maxp = -FLT_MAX;
-	for (int i = 0; i < 8; ++i) {
-		for (int j = 0; j < 8; ++j) {
-			float move_angle = snorm(i / 8.0f) * CP_PI;
+	for (int i = 0; i < RL_OBS_NUM_MOVES; ++i) {
+		cpVect move_dir;
+		if (i < RL_OBS_NUM_MOVES-1) {
+			float move_angle = snorm((float)i / RL_OBS_NUM_MOVES-1) * CP_PI;
 			move_angle += physics->angle;
-			float turn_angle = snorm(j / 8.0f) * CP_PI;
+			move_dir = cpvforangle(move_angle);
+			//move_dir = cpvrotate(move_dir, physics->front);
+		} else {
+			move_dir = cpvzero;
+		}
+		//cpVect move = cpvmult(move_dir, physics->max_speed * TICK_RATE);
+		cpVect move = cpvmult(move_dir, 0.1f);
+		cpVect point = cpvadd(physics->position, move);
+		for (int j = 0; j < RL_OBS_NUM_TURNS; ++j) {
+			
+			float turn_angle = snorm((float)j / RL_OBS_NUM_TURNS) * CP_PI;
 			turn_angle += physics->angle;
-			cpVect move_dir = cpvforangle(move_angle);
-			cpVect move = cpvmult(move_dir, physics->radius);
-			cpVect point = cpvadd(physics->position, move);
 			cpVect front = cpvforangle(turn_angle);
+			//front = cpvrotate(front, physics->front);
 
-			double potential = 0;
-			for (int k = 0; k < num_behaviors; ++k) {
-				locomotion_behavior_t *locomotion_behavior = &behaviors[k];
-				double p = (*locomotion_behavior)(zrc, id, point, front);
-				potential += p;
-			}
+			double potential = locomotion_potential(zrc, id, point, front);
 			potentials[i][j] = (float)potential;
 			minp = min(minp, potential);
 			maxp = max(maxp, potential);
 		}
 	}
-	{
-		double potential = 0;
-		for (int k = 0; k < num_behaviors; ++k) {
-			locomotion_behavior_t *locomotion_behavior = &behaviors[k];
-			double p = (*locomotion_behavior)(zrc, id, physics->position, physics->front);
-			potential += p;
-		}
-		current = (float)potential;
-		minp = min(minp, potential);
-		maxp = max(maxp, potential);
-	}
 
-	assert(minp != maxp);
+	//assert(minp != maxp);
 
 	rl_obs_t obs;
-	for (int i = 0; i < 8; ++i) {
-		for (int j = 0; j < 8; ++j) {
-			double norm = (potentials[i][j] - minp) / (maxp - minp);
+	for (int i = 0; i < RL_OBS_NUM_MOVES; ++i) {
+		for (int j = 0; j < RL_OBS_NUM_TURNS; ++j) {
+			double norm = znorm(potentials[i][j], minp, maxp);
 			obs.values[i][j] = (float)norm;
 		}
-	}
-	{
-		double norm = (current - minp) / (maxp - minp);
-		obs.current = (float)norm;
 	}
 	ZRC_SEND(zrc, rl_obs, id, &obs);
 
 	rl->reward = 0;
 	const physics_t *pphysics = ZRC_GET_PREV(zrc, physics, id);
 	if (physics && pphysics) {
-		double potential = 0;
-		double prev_potential = 0;
-		for (int i = 0; i < num_behaviors; ++i) {
-			locomotion_behavior_t *locomotion_behavior = &behaviors[i];
-			prev_potential += (*locomotion_behavior)(zrc, id, pphysics->position, pphysics->front);
-			potential += (*locomotion_behavior)(zrc, id, physics->position, physics->front);
-		}
-		double norm = (potential - minp) / (maxp - minp);
-		double prev_norm = (prev_potential - minp) / (maxp - minp);
+		double potential = locomotion_potential(zrc, id, physics->position, physics->front);
+		double prev_potential = locomotion_potential(zrc, id, pphysics->position, pphysics->front);
+		double norm = znorm(potential, minp, maxp);
+		double prev_norm = znorm(prev_potential, minp, maxp);
 		float reward = (float)(norm - prev_norm);
+		//float reward = (float)(norm * TICK_RATE);
+		float speed = cpvlength(physics->velocity) + physics->angular_velocity;
+		reward *= speed;
+		reward = max(0, reward);
 		rl->reward += reward;
 	}
 	rl->total_reward += rl->reward;
 
-	rl_act_t *action;
-	ZRC_RECEIVE(zrc, rl_act, id, &rl->recv_rl_act, action, {
-		flight_thrust_t flight_thrust;
-		flight_thrust.thrust.x = step(action->thrust[0]);
-		flight_thrust.thrust.y = step(action->thrust[1]);
-		flight_thrust.turn = step(action->turn);
-		flight_thrust.damp = action->damp < 0 ? 0.0f : SHIP_DAMPING;
-		ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
-	});
+	if (rl->act) {
+		rl_act_t *action;
+		ZRC_RECEIVE(zrc, rl_act, id, &rl->recv_rl_act, action, {
+			flight_thrust_t flight_thrust;
+			flight_thrust.thrust.x = step(action->thrust[0]);
+			flight_thrust.thrust.y = step(action->thrust[1]);
+			flight_thrust.turn = step(action->turn);
+			flight_thrust.damp = action->damp < 0 ? 0.0f : SHIP_DAMPING;
+			ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
+			});
+	}
 }
 
 static unsigned has_cast[ABILITY_COUNT];

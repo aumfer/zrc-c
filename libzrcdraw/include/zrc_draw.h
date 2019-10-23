@@ -16,6 +16,5 @@ typedef struct zrc_draw {
 void zrc_draw_create(zrc_draw_t *);
 void zrc_draw_delete(zrc_draw_t *);
 
-void zrc_draw_update(zrc_draw_t *, zrc_t *);
 void zrc_draw_frame(zrc_draw_t *, zrc_t *);
 void zrc_draw_run(zrc_draw_t *, zrc_t *);

@@ -94,20 +94,7 @@ void draw_locomotion_delete(draw_locomotion_t *draw_locomotion) {
 
 }
 
-void draw_locomotion_update(draw_locomotion_t *draw_locomotion, const zrc_t *zrc, const control_t *control) {
-	id_t id = control->unit;
-	if (id == ID_INVALID) return;
-
-	int num_behaviors = 0;
-	const locomotion_behavior_t *locomotion_behavior;
-	ZRC_RECEIVE(zrc, locomotion_behavior, id, &draw_locomotion->recv_locomotion_behavior[id], locomotion_behavior, {
-		draw_locomotion->behaviors[num_behaviors++] = *locomotion_behavior;
-	});
-	draw_locomotion->num_behaviors = num_behaviors;
-}
-
 void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
-	//return; // todo
 	draw_locomotion->accumulator += dt;
 	if (draw_locomotion->accumulator >= DRAW_LOCOMOTION_RATE) {
 		draw_locomotion->accumulator = 0;
@@ -119,7 +106,7 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 			return;
 		}
 
-		if (!draw_locomotion->num_behaviors) {
+		if (!locomotion->num_behaviors) {
 			return;
 		}
 		float viewport[4] = { 0, 0, DRAW_LOCOMOTION_SIZE, DRAW_LOCOMOTION_SIZE };
@@ -133,15 +120,11 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 				float t = isect_plane(ro, rd, HMM_Vec4(0, 0, 1, 0));
 				hmm_vec3 hit = HMM_AddVec3(ro, HMM_MultiplyVec3f(rd, t));
 
-				double potential = 0;
-				for (int i = 0; i < draw_locomotion->num_behaviors; ++i) {
-					const locomotion_behavior_t *behavior = &draw_locomotion->behaviors[i];
-					cpVect point = cpv(hit.X, hit.Y);
-					cpVect offset = cpvsub(point, physics->position);
-					cpVect direction = cpvnormalize(offset);
-					double p = (*behavior)(zrc, id, point, direction);
-					potential += p;
-				}
+				cpVect point = cpv(hit.X, hit.Y);
+				cpVect offset = cpvsub(point, physics->position);
+				cpVect direction = cpvnormalize(offset);
+
+				double potential = locomotion_potential(zrc, id, point, direction);
 				draw_locomotion->potential[y][x] = (float)potential;
 				minp = min(minp, potential);
 				maxp = max(maxp, potential);
@@ -154,7 +137,7 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 
 		for (int x = 0; x < DRAW_LOCOMOTION_SIZE; ++x) {
 			for (int y = 0; y < DRAW_LOCOMOTION_SIZE; ++y) {
-				double norm = (draw_locomotion->potential[x][y] - minp) / (maxp - minp);
+				double norm = znorm(draw_locomotion->potential[x][y], minp, maxp);
 				draw_locomotion->scaled_potential[x][y] = (uint8_t)(norm * 255);
 			}
 		}
@@ -168,7 +151,7 @@ void draw_locomotion_frame(draw_locomotion_t *draw_locomotion, const zrc_t *zrc,
 	}
 
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_DONTCARE,
+		.colors[0].action = SG_ACTION_LOAD,
 		.depth.action = SG_ACTION_DONTCARE,
 		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());

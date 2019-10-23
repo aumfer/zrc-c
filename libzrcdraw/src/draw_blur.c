@@ -95,9 +95,9 @@ void draw_blur_delete(draw_blur_t *draw_blur) {
 
 void draw_blur_draw(draw_blur_t *draw_blur, sg_image blur) {
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_DONTCARE,
-			.depth.action = SG_ACTION_DONTCARE,
-			.stencil.action = SG_ACTION_DONTCARE
+		.colors[0].action = SG_ACTION_LOAD,
+		.depth.action = SG_ACTION_DONTCARE,
+		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());
 
 	sg_apply_pipeline(draw_blur->program);

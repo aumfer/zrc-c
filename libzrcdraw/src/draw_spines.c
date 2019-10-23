@@ -109,7 +109,7 @@ void draw_spines_draw(draw_spines_t *draw_spines, spines_t *spines, const camera
 		return;
 	}
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_DONTCARE,
+		.colors[0].action = SG_ACTION_LOAD,
 		.depth.action = SG_ACTION_DONTCARE,
 		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());

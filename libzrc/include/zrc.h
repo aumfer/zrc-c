@@ -252,6 +252,9 @@ typedef double(*locomotion_behavior_t)(const zrc_t *, id_t, cpVect point, cpVect
 #define NUM_LOCOMOTION_TURNS 7
 
 typedef struct locomotion {
+	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
+	int num_behaviors;
+
 	recv_t recv_locomotion_behavior;
 } locomotion_t;
 
@@ -259,10 +262,14 @@ typedef struct locomotion {
 
 typedef struct seek_to {
 	cpVect point;
+	float weight;
 } seek_to_t;
 
 typedef struct seek {
-	cpVect point;
+	seek_to_t to[max_seek_to_messages];
+	int num_to;
+
+	float weight;
 
 	recv_t recv_seek_to;
 } seek_t;
@@ -271,10 +278,14 @@ typedef struct seek {
 
 typedef struct align_to {
 	float angle;
+	float weight;
 } align_to_t;
 
 typedef struct align {
-	float angle;
+	align_to_t to[max_align_to_messages];
+	int num_to;
+
+	float weight;
 
 	recv_t recv_align_to;
 } align_t;
@@ -316,9 +327,11 @@ typedef struct rl_act {
 
 #define max_rl_obs_messages 1
 
+#define RL_OBS_NUM_MOVES 16
+#define RL_OBS_NUM_TURNS 16
+
 typedef struct rl_obs {
-	float values[8][8];
-	float current;
+	float values[RL_OBS_NUM_MOVES][RL_OBS_NUM_TURNS];
 } rl_obs_t;
 
 #define RL_OBS_LENGTH (sizeof(rl_obs_t)/sizeof(float))
@@ -327,10 +340,10 @@ typedef struct rl {
 	int done;
 	float total_reward;
 	float reward;
+	int act;
 
 	recv_t recv_rl_act;
 	recv_t recv_rl_obs;
-	recv_t recv_locomotion_behavior;
 } rl_t;
 
 typedef uint32_t team_t;
@@ -631,6 +644,7 @@ void locomotion_shutdown(zrc_t *);
 void locomotion_create(zrc_t *, id_t, locomotion_t *);
 void locomotion_delete(zrc_t *, id_t, locomotion_t *);
 void locomotion_update(zrc_t *, id_t, locomotion_t *);
+double locomotion_potential(const zrc_t *, id_t, cpVect point, cpVect front);
 
 void seek_startup(zrc_t *);
 void seek_shutdown(zrc_t *);

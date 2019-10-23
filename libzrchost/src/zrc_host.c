@@ -217,11 +217,11 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		//ZRC_SPAWN(zrc, physics_controller, id, &(physics_controller_t){0});
 		ZRC_SPAWN(zrc, locomotion, id, &(locomotion_t){0});
 		seek_t seek = {
-			0
+			.weight = 1
 		};
 		ZRC_SPAWN(zrc, seek, id, &seek);
 		align_t align = {
-			0
+			.weight = 1
 		};
 		ZRC_SPAWN(zrc, align, id, &align);
 		visual_t visual = {
@@ -236,6 +236,9 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 			// w/ force
 			.max_thrust = 150*5,
 			.max_turn = 3*5,
+			// instant
+			//.thrust_control_rate = 1.0f / TICK_RATE,
+			//.turn_control_rate = 1.0f / TICK_RATE,
 			.thrust_control_rate = 2,
 			.turn_control_rate = 4
 		};
@@ -269,19 +272,19 @@ void demo_world_create(demo_world_t *demo_world, zrc_host_t *zrc_host, zrc_t *zr
 		});
 
 		rl_t rl = {
-			0
+			.act = !!i
 		};
-		if (i) {
-			ZRC_SPAWN(zrc, rl, id, &rl);
-		}
+		ZRC_SPAWN(zrc, rl, id, &rl);
 		seek_to_t seek_to = {
 			.point = {.x = randfs() * WORLD_HALF / 2,.y = randfs() * WORLD_HALF / 2 },
+			.weight = 1
 		};
 		ZRC_SEND(zrc, seek_to, id, &seek_to);
 		align_to_t align_to = {
-			.angle = randfs() * CP_PI
+			.angle = randfs() * CP_PI,
+			.weight = 1 / 10000.0f
 		};
-		ZRC_SEND(zrc, align_to, id, &align_to);
+		//ZRC_SEND(zrc, align_to, id, &align_to);
 
 		id_t goal_id = zrc_host_put(zrc_host, guid_create());
 

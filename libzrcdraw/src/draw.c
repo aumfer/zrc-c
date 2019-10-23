@@ -23,10 +23,6 @@ void draw_delete(draw_t *draw) {
 	sg_shutdown();
 }
 
-void draw_update(draw_t *draw, zrc_t *zrc, const control_t *control) {
-	draw_locomotion_update(&draw->draw_locomotion, zrc, control);
-}
-
 void draw_frame(draw_t *draw, zrc_t *zrc, const ui_t *ui, const control_t *control, const camera_t *camera, float dt) {
 	moving_average_update(&draw->fps, dt);
 

@@ -41,14 +41,13 @@ out vec4 p_color;
 void main() {
 	vec2 texcoord = unorm(f_texcoord);
 	vec4 color = texture(potential, texcoord).rrrr;
-	p_color = color;
+	p_color = vec4(color.r, 0, 0, 0.5);
 });
 
 void draw_ai_create(draw_ai_t *draw_ai) {
-#if 0
 	draw_ai->image = sg_make_image(&(sg_image_desc) {
-		.width = RL_LIDAR,
-		.height = 2 * (DRAW_AI_ENTITIES + 1),
+		.width = RL_OBS_NUM_TURNS,
+		.height = RL_OBS_NUM_MOVES,
 		.usage = SG_USAGE_STREAM,
 		.pixel_format = SG_PIXELFORMAT_R8
 	});
@@ -84,48 +83,43 @@ void draw_ai_create(draw_ai_t *draw_ai) {
 		.index_type = SG_INDEXTYPE_UINT16,
 			.blend = {
 				.enabled = true,
-				.src_factor_rgb = SG_BLENDFACTOR_ONE,
-				.src_factor_alpha = SG_BLENDFACTOR_ONE,
-				.dst_factor_rgb = SG_BLENDFACTOR_ONE,
-				.dst_factor_alpha = SG_BLENDFACTOR_ONE,
+				//.src_factor_rgb = SG_BLENDFACTOR_ONE,
+				//.src_factor_alpha = SG_BLENDFACTOR_ONE,
+				//.dst_factor_rgb = SG_BLENDFACTOR_ONE,
+				//.dst_factor_alpha = SG_BLENDFACTOR_ONE,
 		}
 	});
-#endif
 }
 void draw_ai_delete(draw_ai_t *draw_ai) {
 
 }
 
 void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera, const control_t *control, float dt) {
-#if 0
 	id_t id = control->unit;
 	const rl_t *ai = ZRC_GET(zrc, rl, id);
 	if (!ai) return;
 
-	rl_obs_t locomotion_obs;
-	rl_observe(zrc, id, &locomotion_obs);
+	const rl_obs_t *rl_obs;
+	ZRC_RECEIVE(zrc, rl_obs, id, &draw_ai->recv_rl_obs, rl_obs, {});
+	
+	if (rl_obs) {
+		uint8_t img_obs[RL_OBS_NUM_TURNS][RL_OBS_NUM_MOVES];
+		for (int i = 0; i < RL_OBS_NUM_MOVES; ++i) {
+			for (int j = 0; j < RL_OBS_NUM_TURNS; ++j) {
+				img_obs[j][i] = (uint8_t)(unorm(rl_obs->values[i][j]) * 255);
+			}
+		}
 
-	uint8_t locomotion_lidar[(DRAW_AI_ENTITIES + 1)][2][RL_LIDAR] = { 0 };
-	//memset(locomotion_lidar, 0, sizeof(locomotion_lidar));
-	for (int i = 0; i < RL_LIDAR; ++i) {
-		locomotion_lidar[0][0][i] = (uint8_t)(unorm(locomotion_obs.command.dist[i]) * 255);
-		locomotion_lidar[0][1][i] = (uint8_t)(unorm(locomotion_obs.command.align[i]) * 255);
-
-		//for (int j = 0; j < DRAW_AI_ENTITIES; ++j) {
-		//	locomotion_lidar[j+1][0][i] = (uint8_t)(unorm(locomotion_obs.sense[j].dist[i]) * 255);
-		//	locomotion_lidar[j+1][1][i] = (uint8_t)(unorm(locomotion_obs.sense[j].align[i]) * 255);
-		//}
+		sg_update_image(draw_ai->image, &(sg_image_content) {
+			.subimage[0][0] = {
+				.size = sizeof(img_obs),
+				.ptr = img_obs
+			}
+		});
 	}
 
-	sg_update_image(draw_ai->image, &(sg_image_content) {
-		.subimage[0][0] = {
-			.size = sizeof(locomotion_lidar),
-			.ptr = locomotion_lidar
-		}
-	});
-
 	sg_begin_default_pass(&(sg_pass_action) {
-		.colors[0].action = SG_ACTION_DONTCARE,
+		.colors[0].action = SG_ACTION_LOAD,
 		.depth.action = SG_ACTION_DONTCARE,
 		.stencil.action = SG_ACTION_DONTCARE
 	}, sapp_width(), sapp_height());
@@ -138,11 +132,10 @@ void draw_ai_frame(draw_ai_t *draw_ai, const zrc_t *zrc, const camera_t *camera,
 		.index_buffer = draw_ai->index_buffer,
 		.fs_images[0] = draw_ai->image
 	});
-	sg_apply_viewport(0, 0, sapp_width(), 8 * 2 * (DRAW_AI_ENTITIES + 1), true);
+	sg_apply_viewport(0, sapp_height() / 2, sapp_width(), sapp_height()/2, true);
 
 	sg_draw(0, _countof(indices), 1);
 
 	sg_end_pass();
 	sg_commit();
-#endif
 }

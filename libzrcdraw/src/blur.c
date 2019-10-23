@@ -125,7 +125,7 @@ sg_image blur_draw(blur_t *blur) {
 	for (int i = 0; i < BLUR_PASSES; ++i) {
 		{
 			sg_begin_pass(blur->passes[0], &(sg_pass_action) {
-				.colors[0].action = SG_ACTION_DONTCARE,
+				.colors[0].action = SG_ACTION_LOAD,
 			});
 
 			sg_apply_pipeline(blur->program);
@@ -151,7 +151,7 @@ sg_image blur_draw(blur_t *blur) {
 
 		{
 			sg_begin_pass(blur->passes[1], &(sg_pass_action) {
-				.colors[0].action = SG_ACTION_DONTCARE,
+				.colors[0].action = SG_ACTION_LOAD,
 			});
 
 			sg_apply_pipeline(blur->program);

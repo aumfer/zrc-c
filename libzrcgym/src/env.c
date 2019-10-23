@@ -107,9 +107,6 @@ void env_step(env_t *env, rl_act_t *action, rl_obs_t *observation, float *reward
 		//printf("%u update", zrc->frame);
 		gym_update(gym);
 		//puts(" done");
-		if (env->zrc_draw) {
-			zrc_draw_update(env->zrc_draw, zrc);
-		}
 
 		//printf("%u obs", zrc->frame);
 		rl_obs_t *obs;

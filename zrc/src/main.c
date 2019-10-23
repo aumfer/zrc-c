@@ -38,7 +38,6 @@ static int thread(void *_) {
 
 			zrc_update(&zrc);
 			zrc_host_update(&zrc_host, &zrc);
-			zrc_draw_update(&zrc_draw, &zrc);
 		}
 
 		thrd_yield();

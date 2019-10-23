@@ -49,15 +49,18 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	cpVect positions[NUM_THRUSTS][NUM_TURNS];
 	float angles[NUM_THRUSTS][NUM_TURNS];
 
-	locomotion_behavior_t behaviors[max_locomotion_behavior_messages];
-	int num_behaviors = 0;
+	locomotion->num_behaviors = 0;
 
 	locomotion_behavior_t *locomotion_behavior;
 	ZRC_RECEIVE(zrc, locomotion_behavior, id, &locomotion->recv_locomotion_behavior, locomotion_behavior, {
-		behaviors[num_behaviors++] = *locomotion_behavior;
+		locomotion->behaviors[locomotion->num_behaviors++] = *locomotion_behavior;
 	});
 
-	if (!num_behaviors) {
+	if (!locomotion->num_behaviors) {
+		return;
+	}
+	return;
+	if (ZRC_HAS(zrc, rl, id)) {
 		return;
 	}
 
@@ -67,22 +70,18 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	double maxp = -FLT_MAX;
 	for (int i = 0; i < NUM_THRUSTS; ++i) {
 		for (int j = 0; j < NUM_TURNS; ++j) {
-			float turn = TURNS[j];
+			float turn = TURNS[j] * physics->max_spin * TICK_RATE;
 			float angle = physics->angle + physics->angular_velocity * TICK_RATE;
 			float test_angle = angle + turn;
 			cpVect test_direction = cpvforangle(test_angle);
-			float move = THRUSTS[i];
+			float move = THRUSTS[i] * physics->max_speed * TICK_RATE;
 			cpVect position = cpvadd(physics->position, cpvmult(physics->velocity, TICK_RATE));
 			cpVect test_position = cpvadd(position, cpvrotate(cpv(move, 0), cpvforangle(test_angle)));
 
 			positions[i][j] = test_position;
 			angles[i][j] = test_angle;
 
-			double potential = 0;
-			for (int i = 0; i < num_behaviors; ++i) {
-				locomotion_behavior_t *locomotion_behavior = &behaviors[i];
-				potential += (*locomotion_behavior)(zrc, id, test_position, test_direction);
-			}
+			double potential = locomotion_potential(zrc, id, test_position, test_direction);
 			potentials[i][j] = potential;
 			minp = min(minp, potential);
 			maxp = max(maxp, potential);
@@ -90,8 +89,6 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	}
 
 	assert(minp != maxp);
-
-	return;
 
 	int best_thrust = -1;
 	int best_turn = -1;
@@ -110,8 +107,24 @@ void locomotion_update(zrc_t *zrc, id_t id, locomotion_t *locomotion) {
 	if (THRUSTS[best_thrust] || TURNS[best_turn]) {
 		flight_thrust_t flight_thrust = {
 			.thrust = { THRUSTS[best_thrust], 0 },
-			.turn = TURNS[best_turn]
+			.turn = TURNS[best_turn],
+			.damp = SHIP_DAMPING
 		};
 		ZRC_SEND(zrc, flight_thrust, id, &flight_thrust);
 	}
+}
+
+double locomotion_potential(const zrc_t *zrc, id_t id, cpVect point, cpVect front) {
+	double potential = 0;
+	const locomotion_t *locomotion = ZRC_GET(zrc, locomotion, id);
+	if (locomotion) {
+		for (int i = 0; i < locomotion->num_behaviors; ++i) {
+			const locomotion_behavior_t *locomotion_behavior = &locomotion->behaviors[i];
+			double p = (*locomotion_behavior)(zrc, id, point, front);
+			//potential += p;
+			//potential *= p;
+			potential = max(potential, p);
+		}
+	}
+	return potential;
 }
